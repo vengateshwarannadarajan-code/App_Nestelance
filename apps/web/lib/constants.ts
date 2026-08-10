@@ -102,3 +102,37 @@ export const PLAN_LIMITS = {
     pdfExport: true,
   },
 } as const;
+
+// ── Theme icons (T-CONST-001) ─────────────────────────────────
+import {
+  Leaf, Bug, Recycle, Heart, Users, Truck,
+  LayoutGrid, Shield, Lock, Vote, type LucideIcon,
+} from "lucide-react";
+
+export const THEME_ICONS: Record<string, LucideIcon> = {
+  climate_transition:          Leaf,
+  biodiversity:                Bug,
+  circular_economy:            Recycle,
+  employee_wellbeing:          Heart,
+  human_rights_community:      Users,
+  supply_chain_responsibility: Truck,
+  board_governance:            LayoutGrid,
+  ethics_anticorruption:       Shield,
+  data_privacy:                Lock,
+  shareholder_rights:          Vote,
+  default:                     Leaf,
+};
+
+// Materiality badge colours (T-CONST-001)
+export const MATERIALITY_COLORS: Record<string, string> = {
+  Critical:    "#B71C1C",
+  Material:    "#E65100",
+  Relevant:    "#1565C0",
+  NotRelevant: "#757575",
+};
+
+// getPillar helper (T-CONST-001)
+export function getPillar(themeId: string): "E" | "S" | "G" {
+  const theme = THEMES.find(t => t.id === themeId);
+  return (theme?.pillar as "E" | "S" | "G") ?? "E";
+}
