@@ -1,0 +1,125 @@
+# NEST ÉLANCE — Materiality Weights
+# 10 themes × 6 sector groups
+# Values: Critical=1.0 | Material=0.75 | Relevant=0.25 | NotRelevant=0.0
+# Source: ESRS materiality assessment + sector-specific VSME guidance
+
+themes:
+  climate_transition:
+    label: "Transition climatique"
+    pillar: E
+    esrs: E1
+    weights:
+      manufacturing:   1.0   # Critical — high scope 1+2 exposure
+      services:        0.75  # Material
+      retail:          0.75  # Material
+      construction:    1.0   # Critical — cement, energy intensive
+      agriculture:     1.0   # Critical — land use + methane
+      tech:            0.75  # Material — data centre energy
+
+  biodiversity:
+    label: "Biodiversité & utilisation des terres"
+    pillar: E
+    esrs: E4
+    weights:
+      manufacturing:   0.75  # Material
+      services:        0.25  # Relevant
+      retail:          0.75  # Material — supply chain land use
+      construction:    1.0   # Critical — land transformation
+      agriculture:     1.0   # Critical
+      tech:            0.25  # Relevant
+
+  circular_economy:
+    label: "Économie circulaire"
+    pillar: E
+    esrs: E5
+    weights:
+      manufacturing:   1.0   # Critical — waste, packaging
+      services:        0.25  # Relevant
+      retail:          1.0   # Critical — packaging, returns
+      construction:    0.75  # Material — demolition waste
+      agriculture:     0.75  # Material
+      tech:            0.75  # Material — e-waste, hardware
+
+  employee_wellbeing:
+    label: "Bien-être des employés"
+    pillar: S
+    esrs: S1
+    weights:
+      manufacturing:   1.0   # Critical — safety, health
+      services:        1.0   # Critical — labour intensive
+      retail:          1.0   # Critical
+      construction:    1.0   # Critical — accident rate
+      agriculture:     1.0   # Critical — seasonal, migrant workers
+      tech:            0.75  # Material
+
+  human_rights_community:
+    label: "Droits humains & communauté"
+    pillar: S
+    esrs: S2,S3
+    weights:
+      manufacturing:   1.0   # Critical — supply chain HRDD
+      services:        0.75  # Material
+      retail:          1.0   # Critical — supplier due diligence
+      construction:    0.75  # Material
+      agriculture:     1.0   # Critical — seasonal labour rights
+      tech:            0.75  # Material
+
+  board_governance:
+    label: "Gouvernance du conseil"
+    pillar: G
+    esrs: G1
+    weights:
+      manufacturing:   0.75  # Material
+      services:        0.75  # Material
+      retail:          0.75  # Material
+      construction:    0.75  # Material
+      agriculture:     0.25  # Relevant — often family-owned SMEs
+      tech:            1.0   # Critical — investor expectations
+
+  ethics_anticorruption:
+    label: "Éthique & anti-corruption"
+    pillar: G
+    esrs: G1
+    weights:
+      manufacturing:   0.75  # Material
+      services:        1.0   # Critical — procurement, public contracts
+      retail:          0.75  # Material
+      construction:    1.0   # Critical — public tenders, permits
+      agriculture:     0.25  # Relevant
+      tech:            0.75  # Material
+
+  data_privacy:
+    label: "Confidentialité des données"
+    pillar: G
+    esrs: G1
+    weights:
+      manufacturing:   0.25  # Relevant
+      services:        1.0   # Critical — GDPR, customer data
+      retail:          1.0   # Critical — e-commerce, loyalty
+      construction:    0.25  # Relevant
+      agriculture:     0.0   # NotRelevant
+      tech:            1.0   # Critical
+
+  shareholder_rights:
+    label: "Droits des actionnaires"
+    pillar: G
+    esrs: G1
+    weights:
+      manufacturing:   0.75  # Material
+      services:        0.75  # Material
+      retail:          0.75  # Material
+      construction:    0.75  # Material
+      agriculture:     0.25  # Relevant
+      tech:            1.0   # Critical — VC/PE governance
+
+  supply_chain_responsibility:
+    label: "Responsabilité chaîne d'approvisionnement"
+    pillar: S
+    esrs: S2,E1
+    weights:
+      manufacturing:   1.0   # Critical — CSDDD exposure
+      services:        0.25  # Relevant
+      retail:          1.0   # Critical — sourcing risk
+      construction:    0.75  # Material — subcontractors
+      agriculture:     1.0   # Critical — upstream inputs
+      tech:            0.75  # Material — hardware supply chain

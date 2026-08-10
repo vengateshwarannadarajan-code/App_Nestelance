@@ -1,0 +1,110 @@
+# NEST ÉLANCE — Absolute Thresholds
+# Hard regulatory/governance floors. Failing any threshold
+# triggers a warning badge on the dashboard and blocks
+# the score from reaching 5.0 on that theme.
+
+absolute_thresholds:
+
+  board_independence_pct:
+    question_id: board_governance_q3
+    operator: ">"
+    value: 50
+    unit: "%"
+    description: >
+      More than 50% of board members must be independent.
+      Below this, the board_governance theme is flagged.
+    esrs_ref: G1-2
+    fail_label: "Indépendance du conseil insuffisante"
+
+  board_gender_diversity_pct:
+    question_id: board_governance_q4
+    operator: ">="
+    value: 40
+    unit: "%"
+    description: >
+      At least 40% of board seats held by women (EU Women
+      on Boards Directive 2022/2381 target for listed companies;
+      best-practice benchmark for SMEs).
+    esrs_ref: S1-9
+    fail_label: "Parité au conseil insuffisante"
+
+  compensation_committee_independence:
+    question_id: board_governance_q5
+    operator: "="
+    value: 100
+    unit: "%"
+    description: >
+      Compensation committee must be 100% independent members.
+      Conflicts of interest in compensation setting are a
+      hard governance risk.
+    esrs_ref: G1-2
+    fail_label: "Comité de rémunération non indépendant"
+
+  gender_pay_gap_pct:
+    question_id: employee_wellbeing_q5
+    operator: "<="
+    value: 5
+    unit: "%"
+    description: >
+      Gender pay gap must be ≤5%. Above this threshold,
+      employee_wellbeing score is flagged for Social pillar.
+    esrs_ref: S1-16
+    fail_label: "Écart de rémunération H/F trop élevé"
+
+  agm_notice_days:
+    question_id: shareholder_rights_q3
+    operator: ">="
+    value: 28
+    unit: "days"
+    description: >
+      Minimum 28 days notice required for Annual General Meeting.
+      Below this, shareholder rights score is flagged.
+    esrs_ref: G1-1
+    fail_label: "Délai de convocation AGO insuffisant"
+
+  corruption_fines_2y:
+    question_id: ethics_anticorruption_q4
+    operator: "="
+    value: false
+    unit: "boolean"
+    description: >
+      Company must not have received any corruption or bribery
+      fines in the last 2 years. Any fine triggers a hard flag
+      on the ethics_anticorruption theme.
+    esrs_ref: G1-4
+    fail_label: "Amende anti-corruption dans les 2 dernières années"
+
+  environmental_fines_2y:
+    question_id: climate_transition_q8
+    operator: "="
+    value: false
+    unit: "boolean"
+    description: >
+      Company must not have received any environmental regulatory
+      fines in the last 2 years.
+    esrs_ref: E1-1
+    fail_label: "Amende environnementale dans les 2 dernières années"
+
+  ems_certification:
+    question_id: circular_economy_q5
+    operator: "="
+    value: true
+    unit: "boolean"
+    description: >
+      For manufacturing and construction sector groups only:
+      an Environmental Management System certification (ISO 14001
+      or EMAS) is required to reach score 5.0 on circular_economy.
+    esrs_ref: E5-1
+    sector_scope: ["manufacturing", "construction"]
+    fail_label: "Certification SME/ISO 14001 absente"
+
+  audit_committee_independence:
+    question_id: board_governance_q6
+    operator: "="
+    value: 100
+    unit: "%"
+    description: >
+      Audit committee must be 100% independent. Required for
+      financial integrity and CSRD audit readiness.
+    esrs_ref: G1-2
+    fail_label: "Comité d'audit non indépendant"

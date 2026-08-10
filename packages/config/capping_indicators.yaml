@@ -1,0 +1,70 @@
+# NEST ÉLANCE — Capping Indicators
+# One per theme. If capping_indicator answer is False/0,
+# theme score is capped at 3.0 regardless of other answers.
+
+capping_indicators:
+  climate_transition:
+    question_id: climate_transition_q1
+    description: >
+      Does your company measure and report its Scope 1 and Scope 2
+      GHG emissions? A company that does not measure its emissions
+      cannot credibly claim climate transition progress.
+
+  biodiversity:
+    question_id: biodiversity_q1
+    description: >
+      Has your company conducted a biodiversity impact assessment
+      for its primary site(s)? Without a baseline assessment,
+      biodiversity claims are unverifiable.
+
+  circular_economy:
+    question_id: circular_economy_q1
+    description: >
+      Does your company have a documented waste management policy?
+      Absence of a waste policy caps circular economy achievement.
+
+  employee_wellbeing:
+    question_id: employee_wellbeing_q1
+    description: >
+      Does your company comply with all applicable labour laws and
+      health & safety regulations? Legal non-compliance is a hard cap.
+
+  human_rights_community:
+    question_id: human_rights_community_q1
+    description: >
+      Has your company publicly committed to respecting human rights
+      (e.g. via a policy statement)? Without a commitment, HRDD
+      scores are capped.
+
+  board_governance:
+    question_id: board_governance_q1
+    description: >
+      Does your company have a board or governing body with at least
+      one independent member? Absence of any independent oversight
+      caps governance score.
+
+  ethics_anticorruption:
+    question_id: ethics_anticorruption_q1
+    description: >
+      Does your company have an anti-corruption and anti-bribery
+      policy in place? Without a policy, ethics score is capped.
+
+  data_privacy:
+    question_id: data_privacy_q1
+    description: >
+      Does your company have a GDPR-compliant privacy policy and
+      a designated data protection contact? Legal baseline required.
+
+  shareholder_rights:
+    question_id: shareholder_rights_q1
+    description: >
+      Does your company hold at least one annual general meeting
+      (or equivalent governance review) per year? Minimum governance
+      cadence required.
+
+  supply_chain_responsibility:
+    question_id: supply_chain_responsibility_q1
+    description: >
+      Does your company conduct any form of supplier screening or
+      assessment before onboarding? No screening caps supply chain
+      responsibility score.
