@@ -28,7 +28,9 @@ app.add_middleware(
     allow_origins=[
         "https://nestelance.com",
         "https://www.nestelance.com",
-        "http://localhost:3000",
+        "http://localhost:3000",   # apps/web (Next.js) dev
+        "http://localhost:5173",   # nestelance (Vite) default dev port
+        "http://localhost:5174",   # nestelance (Vite) alt dev port
     ],
     allow_credentials=True,
     allow_methods=["*"],
