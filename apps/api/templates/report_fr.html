@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #212121; background: #fff; }
+  h1 { font-size: 20pt; color: #1B5E20; }
+  h2 { font-size: 13pt; color: #1B5E20; margin-bottom: 8px; border-bottom: 2px solid #E8F5E9; padding-bottom: 4px; }
+  h3 { font-size: 11pt; color: #2E7D32; margin-bottom: 6px; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid #1B5E20; }
+  .header-left h1 { margin-bottom: 2px; }
+  .header-left .subtitle { font-size: 9pt; color: #757575; }
+  .logo-area img { max-height: 40px; }
+  .logo-area .brand { font-size: 9pt; color: #9E9E9E; font-style: italic; }
+
+  /* Score hero */
+  .score-hero { display: flex; align-items: center; gap: 24px; background: #F5F5F5; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+  .score-hero .ring-wrap { flex-shrink: 0; }
+  .score-hero .details h2 { border: none; padding: 0; margin: 0; }
+  .score-value { font-size: 28pt; font-weight: bold; }
+  .band-label { font-size: 11pt; font-weight: bold; margin-bottom: 4px; }
+  .score-desc { font-size: 9pt; color: #616161; }
+
+  /* Pillars */
+  .pillar-row { display: flex; gap: 12px; margin-bottom: 20px; }
+  .pillar-card { flex: 1; border: 1px solid #E0E0E0; border-radius: 8px; padding: 10px 12px; text-align: center; }
+  .pillar-name { font-size: 8pt; color: #757575; margin-bottom: 4px; }
+  .pillar-score { font-size: 16pt; font-weight: bold; }
+
+  /* Themes table */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9pt; }
+  thead tr { background: #1B5E20; color: white; }
+  thead th { padding: 7px 8px; text-align: left; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #F9FBE7; }
+  tbody td { padding: 6px 8px; border-bottom: 1px solid #E8F5E9; vertical-align: middle; }
+  .score-cell { font-weight: bold; }
+  .capping-ok { color: #2E7D32; font-size: 10pt; }
+  .capping-fail { color: #E53935; font-size: 10pt; }
+
+  /* Recommendations */
+  .rec-card { border-left: 4px solid #2E7D32; border-radius: 4px; padding: 10px 12px; margin-bottom: 8px; background: #F9FBE7; }
+  .rec-rank { font-size: 9pt; color: #757575; margin-bottom: 2px; }
+  .rec-action { font-size: 10pt; font-weight: bold; color: #1B5E20; margin-bottom: 2px; }
+  .rec-meta { font-size: 8pt; color: #616161; }
+
+  /* CSRD table */
+  .csrd-table th { background: #1565C0; }
+  .csrd-table tbody tr:nth-child(even) { background: #E3F2FD; }
+
+  /* Footer */
+  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #E0E0E0; font-size: 8pt; color: #9E9E9E; display: flex; justify-content: space-between; }
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <h1>{{ company_name }}</h1>
+    <p class="subtitle">Rapport ESG · {{ framework }} · Généré le {{ generation_date }}</p>
+  </div>
+  <div class="logo-area">
+    {% if logo_url %}
+      <img src="{{ logo_url }}" alt="Logo {{ company_name }}" />
+    {% endif %}
+    {% if show_branding %}
+      <p class="brand">Généré par Nest Élance</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Score hero -->
+<div class="score-hero">
+  <div class="ring-wrap">{{ overall_ring_svg | safe }}</div>
+  <div class="details">
+    <p class="band-label" style="color: {{ overall_color }}">{{ overall_band }}</p>
+    <p class="score-value" style="color: {{ overall_color }}">{{ overall_score }}<span style="font-size:14pt; color:#9E9E9E">/5</span></p>
+    <p class="score-desc">Score ESG global · Moteur v{{ engine_version }}</p>
+  </div>
+</div>
+
+<!-- Pillar scores -->
+<h2>Scores par pilier</h2>
+<div class="pillar-row">
+  <div class="pillar-card">
+    {{ pillar_e_ring | safe }}
+    <p class="pillar-name">Environnement</p>
+    <p class="pillar-score" style="color: {{ pillar_e_color }}">{{ pillar_e }}</p>
+  </div>
+  <div class="pillar-card">
+    {{ pillar_s_ring | safe }}
+    <p class="pillar-name">Social</p>
+    <p class="pillar-score" style="color: {{ pillar_s_color }}">{{ pillar_s }}</p>
+  </div>
+  <div class="pillar-card">
+    {{ pillar_g_ring | safe }}
+    <p class="pillar-name">Gouvernance</p>
+    <p class="pillar-score" style="color: {{ pillar_g_color }}">{{ pillar_g }}</p>
+  </div>
+</div>
+
+<!-- Theme scores -->
+<h2>Scores par thème</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Thème</th>
+      <th>Score</th>
+      <th>Niveau</th>
+      <th>Seuil</th>
+      <th>ESRS</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in theme_rows %}
+    <tr>
+      <td>{{ row.name }}</td>
+      <td class="score-cell" style="color: {{ row.color }}">{{ row.score }}/5</td>
+      <td style="color: {{ row.color }}; font-weight: 600">{{ row.band_label }}</td>
+      <td class="{{ 'capping-ok' if row.capping_met else 'capping-fail' }}">
+        {{ "✓" if row.capping_met else "⚠ Plafonné" }}
+      </td>
+      <td style="font-size: 8pt; color: #757575">{{ row.esrs }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Recommendations -->
+<div class="page-break"></div>
+<h2>Principales recommandations</h2>
+{% for rec in recommendations %}
+<div class="rec-card">
+  <p class="rec-rank">Recommandation {{ loop.index }}</p>
+  <p class="rec-action">{{ rec.action }}</p>
+  <p class="rec-meta">
+    Impact : +{{ rec.scoreImpact }} pts ·
+    Effort : {{ rec.effort }} ·
+    {% if rec.csrdMapping %}CSRD : {{ rec.csrdMapping }}{% endif %}
+  </p>
+</div>
+{% endfor %}
+
+<!-- CSRD article mapping -->
+<h2 style="margin-top: 20px">Correspondances CSRD / ESRS</h2>
+<table class="csrd-table">
+  <thead>
+    <tr>
+      <th>Thème</th>
+      <th>Pilier ESRS</th>
+      <th>Articles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in theme_rows %}
+    <tr>
+      <td>{{ row.name }}</td>
+      <td>{{ row.esrs }}</td>
+      <td style="font-size: 8pt; color: #616161">{{ row.articles }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Footer -->
+<div class="footer">
+  <span>{{ company_name }} · Rapport {{ framework }} · {{ generation_date }}</span>
+  <span>Adapté de la méthodologie LSEG ESG · Nest Élance v{{ engine_version }}</span>
+</div>
+
+</body>
+</html>

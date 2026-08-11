@@ -136,3 +136,11 @@ export function getPillar(themeId: string): "E" | "S" | "G" {
   const theme = THEMES.find(t => t.id === themeId);
   return (theme?.pillar as "E" | "S" | "G") ?? "E";
 }
+
+// Plan display labels (for settings, billing, toasts)
+export const PLAN_LABELS: Record<string, string> = {
+  starter:      "Starter",
+  growth:       "Croissance",
+  professional: "Professionnel",
+  consultant:   "Consultant",
+};
