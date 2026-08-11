@@ -1,6 +1,8 @@
 """T-SIM-001: Compliance Simulator router"""
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../packages/scoring-engine"))
+for path in ["/app/packages/scoring-engine", os.path.join(os.path.dirname(__file__), "../../../packages/scoring-engine")]:
+    if os.path.exists(path) and path not in sys.path:
+        sys.path.insert(0, path)
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel

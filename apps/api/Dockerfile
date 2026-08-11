@@ -13,11 +13,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps
-COPY requirements.txt .
+COPY apps/api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# App
-COPY . .
+# App source
+COPY apps/api/ .
+
+# Config files needed by scoring engine
+COPY packages/config/ /app/packages/config/
+COPY packages/scoring-engine/ /app/packages/scoring-engine/
+COPY scripts/ /app/scripts/
 
 EXPOSE 8000
 

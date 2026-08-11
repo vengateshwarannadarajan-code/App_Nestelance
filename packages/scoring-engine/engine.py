@@ -11,7 +11,9 @@ import yaml, os
 from questions import QUESTIONS_BY_THEME, ALL_QUESTIONS
 
 # ── Config loading ────────────────────────────────────────────
-_CONFIG = os.path.join(os.path.dirname(__file__), "../../packages/config")
+_CONFIG = os.environ.get("CONFIG_DIR", os.path.join(os.path.dirname(__file__), "../../packages/config"))
+if not os.path.exists(_CONFIG):
+    _CONFIG = "/app/packages/config"
 
 def _load_yaml(name: str) -> dict:
     with open(os.path.join(_CONFIG, name)) as f:

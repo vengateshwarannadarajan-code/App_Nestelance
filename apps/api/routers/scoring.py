@@ -1,6 +1,11 @@
 """T-ENGINE-005: Scoring router"""
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../packages/scoring-engine"))
+# In Docker: scoring engine is at /app/packages/scoring-engine
+# In local dev: relative path
+for path in ["/app/packages/scoring-engine",
+             os.path.join(os.path.dirname(__file__), "../../../packages/scoring-engine")]:
+    if os.path.exists(path) and path not in sys.path:
+        sys.path.insert(0, path)
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -26,10 +31,8 @@ async def score_company_endpoint(body: ScoreRequest, user: UserProfile = Depends
     from engine import score_company
     from buffer_rule import apply_buffer_rule
 
-    # Inject peer scores
     enriched = inject_peer_scores(body.responses, body.sector_group)
 
-    # Get previous responses for buffer rule
     supabase = _supa()
     prev_snap = (supabase.table("score_snapshots")
         .select("*").eq("company_id", body.company_id)
@@ -45,10 +48,8 @@ async def score_company_endpoint(body: ScoreRequest, user: UserProfile = Depends
     adjusted = apply_buffer_rule(enriched, prev_responses, peer_pcts)
 
     result = score_company(adjusted, body.sector_group)
-
     snapshot_id = save_snapshot(body.company_id, user.id, result)
 
-    # Fire SHAP task non-blocking
     try:
         from tasks import trigger_shap
         trigger_shap.delay(snapshot_id, body.responses, body.sector_group)

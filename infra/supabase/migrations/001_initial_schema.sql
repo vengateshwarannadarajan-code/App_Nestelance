@@ -14,7 +14,7 @@ CREATE TABLE companies (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name                  TEXT NOT NULL,
   country               TEXT NOT NULL DEFAULT 'France',
-  industry_id           TEXT NOT NULL,
+  industry_id           TEXT,
   sector_group          TEXT NOT NULL CHECK (sector_group IN (
                           'manufacturing','services','retail',
                           'construction','agriculture','tech')),

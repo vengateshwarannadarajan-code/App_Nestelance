@@ -8,7 +8,9 @@ from auth import get_current_user, UserProfile
 
 router = APIRouter()
 
-_CONFIG_DIR = os.path.join(os.path.dirname(__file__), "../../../packages/config")
+_CONFIG_DIR = os.environ.get("CONFIG_DIR", os.path.join(os.path.dirname(__file__), "../../../packages/config"))
+if not os.path.exists(_CONFIG_DIR):
+    _CONFIG_DIR = "/app/packages/config"
 
 def _load_materiality():
     path = os.path.join(_CONFIG_DIR, "materiality_weights.yaml")
