@@ -144,3 +144,65 @@ export const PLAN_LABELS: Record<string, string> = {
   professional: "Professionnel",
   consultant:   "Consultant",
 };
+
+// Pricing tiers — single source of truth for billing, pricing page, and landing page.
+// Prices must match apps/api/routers/billing.py's PLAN_PRICE_IDS / Stripe price config.
+export const PRICING_PLANS = [
+  {
+    id: "starter", label: "Starter", price: "49", color: "#757575",
+    desc: "Pour démarrer votre démarche ESG",
+    features: [
+      "Score ESG global",
+      "Questionnaire 47 questions",
+      "10 thèmes analysés",
+      "Tableau de bord basique",
+      "1 évaluation/an",
+    ],
+    locked: ["Explication IA", "Simulateur", "Rapports PDF", "Impact financier"],
+    popular: false,
+  },
+  {
+    id: "growth", label: "Croissance", price: "149", color: "#1B5E20", popular: true,
+    desc: "Pour piloter vos progrès ESG au quotidien",
+    features: [
+      "Tout Starter",
+      "Score détaillé par thème",
+      "Simulateur de conformité",
+      "Impact financier calculé",
+      "4 rapports PDF/an",
+      "Historique 12 mois",
+      "Réévaluations illimitées",
+    ],
+    locked: ["Explication SHAP", "Rapports multi-cadres", "API"],
+  },
+  {
+    id: "professional", label: "Professionnel", price: "299", color: "#1565C0",
+    desc: "Pour les PMEs soumises à la CSRD",
+    features: [
+      "Tout Croissance",
+      "Explication IA (SHAP waterfall)",
+      "Rapports CSRD / GRI / BRSR",
+      "Rapports en marque blanche",
+      "12 rapports/an",
+      "Historique 36 mois",
+      "Support prioritaire",
+    ],
+    locked: ["Accès API", "Multi-clients"],
+    popular: false,
+  },
+  {
+    id: "consultant", label: "Consultant", price: "499", color: "#6A1B9A",
+    desc: "Pour les cabinets RSE et auditeurs ESG",
+    features: [
+      "Tout Professionnel",
+      "Tableau de bord multi-clients",
+      "Carte thermique clients",
+      "Accès API complet",
+      "Clés API illimitées",
+      "Rapports illimités",
+      "SLA prioritaire",
+    ],
+    locked: [],
+    popular: false,
+  },
+] as const;

@@ -2,6 +2,9 @@
 node_modules/
 .pnp
 .pnp.js
+.venv/
+.venv_test/
+venv/
 
 # Build outputs
 .next/

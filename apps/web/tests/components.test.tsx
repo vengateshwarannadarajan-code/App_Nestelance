@@ -8,7 +8,7 @@ import "@testing-library/jest-dom";
 
 // ── 1. ScoreRing — correct colour per band ────────────────────
 describe("ScoreRing", () => {
-  it("renders correct colour for score 2 (orange band)", () => {
+  it("renders correct colour for score 2 (orange band)", async () => {
     const { ScoreRing } = await import("@/components/ScoreRing");
     const { container } = render(<ScoreRing score={2} animated={false} size="medium" />);
     const arc = container.querySelector("circle:last-of-type");

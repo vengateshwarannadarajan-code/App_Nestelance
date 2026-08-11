@@ -43,19 +43,24 @@ export function QuestionCard({
     onAnswerChange(questionId, val);
   }
 
+  const inputId = `question-${questionId}`;
+
   return (
     <div
       className="bg-white rounded-xl shadow-card overflow-hidden"
       style={{ borderLeft: `4px solid ${pillarColor}` }}
     >
-      <div className="p-6">
+      {/* T-A11Y-001: fieldset + legend so the question text is programmatically
+          associated with its inputs, not just visually adjacent. */}
+      <fieldset className="border-0 m-0 p-0">
+        <div className="p-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-5">
           <div className="flex-1">
             {csrdMapping && (
               <span className="inline-block text-xs text-gray-400 font-mono mb-2">{csrdMapping}</span>
             )}
-            <p className="text-base font-medium text-gray-900 leading-relaxed">{text}</p>
+            <legend className="text-base font-medium text-gray-900 leading-relaxed p-0">{text}</legend>
           </div>
 
           {/* T-QUEST-002: Capping indicator */}
@@ -82,7 +87,7 @@ export function QuestionCard({
 
         {/* Input */}
         {inputType === "boolean" ? (
-          <div className="flex gap-3">
+          <div className="flex gap-3" role="radiogroup" aria-label={text}>
             <BooleanButton
               label="Oui"
               selected={currentAnswer === true}
@@ -98,13 +103,16 @@ export function QuestionCard({
           </div>
         ) : (
           <div>
+            <label htmlFor={inputId} className="sr-only">
+              {text}{unit ? ` en ${unit}` : ""}
+            </label>
             <div className="relative">
               <input
+                id={inputId}
                 type="number"
                 value={currentAnswer === null ? "" : String(currentAnswer)}
                 onChange={handleNumericChange}
                 placeholder={rangeHint ?? ""}
-                aria-label={`${text}${unit ? ` en ${unit}` : ""}`}
                 className={`w-full rounded-lg border px-3.5 py-3 text-sm outline-none transition-colors pr-20
                   ${isSmartDefault
                     ? "border-amber-400 bg-amber-50 focus:border-amber-500"
@@ -152,7 +160,8 @@ export function QuestionCard({
             <span className="text-xs text-gray-400">CSRD : {csrdMapping}</span>
           )}
         </div>
-      </div>
+        </div>
+      </fieldset>
     </div>
   );
 }

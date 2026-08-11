@@ -62,6 +62,46 @@ def trigger_shap(self, snapshot_id: str, responses: dict, sector_group: str) -> 
         raise self.retry(exc=exc)
 
 
+@celery_app.task(
+    bind=True,
+    name="tasks.generate_report",
+    max_retries=2,
+    default_retry_delay=15,
+)
+def generate_report(
+    self,
+    company_id: str,
+    snapshot_id: str,
+    framework: str = "CSRD",
+    language: str = "fr",
+    job_id: str | None = None,
+    user_id: str | None = None,
+    user_plan: str = "consultant",
+) -> dict:
+    """
+    T-CONS-005: one report per client in a consultant's bulk-report batch.
+    Queued from routers/consultant.py's /bulk-reports endpoint and polled
+    via GET /bulk-reports/{job_id}, which filters `reports` by job_id.
+    """
+    from routers.reports import generate_and_store_report
+
+    try:
+        return generate_and_store_report(
+            company_id=company_id,
+            snapshot_id=snapshot_id,
+            user_id=user_id or "",
+            user_plan=user_plan,
+            framework=framework,
+            language=language,
+            job_id=job_id,
+        )
+    except ValueError:
+        # Snapshot not found — not retryable, don't spam Celery retries.
+        return {"status": "failed", "company_id": company_id, "reason": "snapshot not found"}
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
 def _get_company_from_snapshot(snapshot_id: str) -> str | None:
     """Helper to retrieve company_id for a snapshot."""
     try:

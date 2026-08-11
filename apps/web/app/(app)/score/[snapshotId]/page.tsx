@@ -160,7 +160,7 @@ export default function ScoreRevealPage() {
             <ArrowRight className="w-4 h-4" />
           </button>
           <button
-            onClick={() => router.push(`/dashboard/xai?snapshot=${snapshotId}`)}
+            onClick={() => router.push(`/explainer/${snapshotId}`)}
             className="flex items-center justify-center gap-2 border border-white/20 text-white/80 hover:bg-white/10 rounded-xl px-6 py-3 text-sm transition-colors"
           >
             Pourquoi ce score ?

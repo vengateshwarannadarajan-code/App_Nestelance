@@ -25,43 +25,52 @@ class GenerateRequest(BaseModel):
     language: str = "fr"
     scope: str = "full"   # full | executive
 
-@router.post("/generate")
-async def generate_report(
-    body: GenerateRequest,
-    user: UserProfile = Depends(require_plan("professional")),
-):
-    if user.company_id != body.company_id:
-        raise HTTPException(403, "Access denied")
 
+def generate_and_store_report(
+    company_id: str,
+    snapshot_id: str,
+    user_id: str,
+    user_plan: str,
+    framework: str = "CSRD",
+    language: str = "fr",
+    job_id: str | None = None,
+) -> dict:
+    """
+    Shared by the synchronous /generate endpoint (T-REPORT-003) and the
+    Celery bulk-report task (T-CONS-005) — fetches the snapshot + company,
+    renders the PDF, uploads it, and records it in `reports`.
+    Plain sync function: nothing it calls actually needs to be awaited.
+    """
     supabase = _supa()
 
-    # Fetch snapshot
-    snap_res = supabase.table("score_snapshots").select("*").eq("id", body.snapshot_id).single().execute()
+    snap_res = supabase.table("score_snapshots").select("*").eq("id", snapshot_id).single().execute()
     if not snap_res.data:
-        raise HTTPException(404, "Snapshot not found")
+        raise ValueError("Snapshot not found")
     snapshot = snap_res.data
     theme_scores = snapshot.get("theme_scores", {})
 
     # Fetch company (for name, logo — T-REPORT-005)
-    co_res = supabase.table("companies").select("name, logo_url").eq("id", body.company_id).single().execute()
+    co_res = supabase.table("companies").select("name, logo_url").eq("id", company_id).single().execute()
     company = co_res.data or {}
     company_name = company.get("name", "Votre Entreprise")
 
     # Logo only for professional/consultant (T-REPORT-005)
-    logo_url = company.get("logo_url") if user.plan in ("professional", "consultant") else None
+    logo_url = company.get("logo_url") if user_plan in ("professional", "consultant") else None
 
-    # Insert pending record
     report_id = str(uuid.uuid4())
-    supabase.table("reports").insert({
+    insert_row = {
         "id": report_id,
-        "company_id": body.company_id,
-        "user_id": user.id,
-        "snapshot_id": body.snapshot_id,
-        "framework": body.framework,
+        "company_id": company_id,
+        "user_id": user_id,
+        "snapshot_id": snapshot_id,
+        "framework": framework,
         "format": "pdf",
-        "locale": body.language,
+        "locale": language,
         "status": "generating",
-    }).execute()
+    }
+    if job_id:
+        insert_row["job_id"] = job_id
+    supabase.table("reports").insert(insert_row).execute()
 
     try:
         pdf_bytes = generate_pdf_report(
@@ -69,14 +78,13 @@ async def generate_report(
             snapshot=snapshot,
             theme_scores=theme_scores,
             recommendations=MOCK_RECS,
-            language=body.language,
-            framework=body.framework,
+            language=language,
+            framework=framework,
             logo_url=logo_url,
-            plan=user.plan,
+            plan=user_plan,
         )
 
-        # Upload to Supabase Storage
-        file_path = f"reports/{body.company_id}/{report_id}.pdf"
+        file_path = f"reports/{company_id}/{report_id}.pdf"
         supabase.storage.from_("reports").upload(
             file_path, pdf_bytes, {"content-type": "application/pdf"}
         )
@@ -91,7 +99,30 @@ async def generate_report(
 
     except Exception as e:
         supabase.table("reports").update({"status": "failed"}).eq("id", report_id).execute()
-        raise HTTPException(500, f"Report generation failed: {str(e)}")
+        raise RuntimeError(f"Report generation failed: {e}") from e
+
+
+@router.post("/generate")
+async def generate_report(
+    body: GenerateRequest,
+    user: UserProfile = Depends(require_plan("professional")),
+):
+    if user.company_id != body.company_id:
+        raise HTTPException(403, "Access denied")
+
+    try:
+        return generate_and_store_report(
+            company_id=body.company_id,
+            snapshot_id=body.snapshot_id,
+            user_id=user.id,
+            user_plan=user.plan,
+            framework=body.framework,
+            language=body.language,
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
 
 
 @router.get("/{company_id}")

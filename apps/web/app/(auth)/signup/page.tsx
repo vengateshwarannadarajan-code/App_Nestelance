@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -8,7 +8,17 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 type State = "form" | "verify-email" | "error";
 
+// Next.js requires useSearchParams() to be wrapped in a Suspense boundary
+// for static generation — without this the production build fails.
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<AuthLayout><div className="text-center text-sm text-gray-400">Chargement…</div></AuthLayout>}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const planParam = searchParams.get("plan") ?? "starter";
@@ -221,9 +231,9 @@ export default function SignupPage() {
 
       <p className="mt-4 text-center text-xs text-gray-400">
         En créant un compte, vous acceptez nos{" "}
-        <Link href="/legal/terms" className="hover:underline">CGU</Link>{" "}
+        <a href="#" className="hover:underline">CGU</a>{" "}
         et notre{" "}
-        <Link href="/legal/privacy" className="hover:underline">politique de confidentialité</Link>.
+        <a href="#" className="hover:underline">politique de confidentialité</a>.
       </p>
     </AuthLayout>
   );

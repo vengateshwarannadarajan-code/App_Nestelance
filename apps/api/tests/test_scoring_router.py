@@ -53,9 +53,9 @@ MOCK_SNAPSHOT_RESULT = {
 }
 
 
-@patch("db.save_snapshot", return_value="snap-789")
+@patch("routers.scoring.save_snapshot", return_value="snap-789")
 @patch("db.get_redis")
-@patch("db._supa")
+@patch("routers.scoring._supa")
 def test_valid_score_request_returns_snapshot(mock_supa, mock_redis, mock_save):
     mock_supa.return_value = MagicMock()
     mock_supa.return_value.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
@@ -84,15 +84,15 @@ def test_unauthenticated_request_returns_401():
 def test_invalid_sector_returns_422():
     client = _get_client()
     invalid_request = {**VALID_REQUEST, "sector_group": ""}
-    with patch("db.save_snapshot", return_value="snap-789"), \
-         patch("db._supa", return_value=MagicMock()):
+    with patch("routers.scoring.save_snapshot", return_value="snap-789"), \
+         patch("routers.scoring._supa", return_value=MagicMock()):
         response = client.post("/api/scoring/score", json=invalid_request)
         # Empty sector should fail or return invalid score
         # We accept 200 with low score OR 422
         assert response.status_code in (200, 422)
 
 
-@patch("db.get_snapshot", return_value=MOCK_SNAPSHOT_RESULT)
+@patch("routers.scoring.get_snapshot", return_value=MOCK_SNAPSHOT_RESULT)
 def test_get_existing_snapshot(mock_get):
     client = _get_client()
     response = client.get("/api/scoring/snapshot/snap-789")
@@ -101,16 +101,16 @@ def test_get_existing_snapshot(mock_get):
     assert data["overall_score"] == 3.2
 
 
-@patch("db.get_snapshot", return_value=None)
+@patch("routers.scoring.get_snapshot", return_value=None)
 def test_get_nonexistent_snapshot_returns_404(mock_get):
     client = _get_client()
     response = client.get("/api/scoring/snapshot/does-not-exist")
     assert response.status_code == 404
 
 
-@patch("db.save_snapshot", return_value="snap-789")
+@patch("routers.scoring.save_snapshot", return_value="snap-789")
 @patch("db.get_redis")
-@patch("db._supa")
+@patch("routers.scoring._supa")
 def test_shap_task_fired_non_blocking(mock_supa, mock_redis, mock_save):
     """SHAP task should be fired without blocking the score endpoint."""
     mock_supa.return_value = MagicMock()

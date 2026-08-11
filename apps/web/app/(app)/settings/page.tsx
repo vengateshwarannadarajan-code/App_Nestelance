@@ -32,8 +32,11 @@ export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const successParam = searchParams.get("success");
+  const tabParam = searchParams.get("tab") as Tab | null;
 
-  const [tab, setTab] = useState<Tab>("company");
+  const [tab, setTab] = useState<Tab>(
+    tabParam === "subscription" || tabParam === "billing" ? tabParam : "company",
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);

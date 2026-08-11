@@ -60,7 +60,7 @@ export function FeatureGateOverlay({
           </p>
           <p className="text-xs text-gray-400 mb-4">à partir de {PLAN_PRICES[requiredPlan]}</p>
           <Link
-            href={`/settings/billing?upgrade=${requiredPlan}`}
+            href={`/billing?upgrade=${requiredPlan}`}
             className="block w-full bg-brand-mid hover:bg-brand-dark text-white text-xs font-medium rounded-lg py-2.5 transition-colors text-center"
           >
             Passer au plan {PLAN_LABELS[requiredPlan]}

@@ -1,6 +1,6 @@
 """
 NEST ÉLANCE — QUESTIONS_BY_THEME
-45 questions across 10 themes.
+47 questions across 10 themes.
 Each question: id, input_type, type, optional absolute_threshold_key.
 """
 
@@ -98,5 +98,6 @@ ALL_QUESTIONS: list[dict] = [
     q for qs in QUESTIONS_BY_THEME.values() for q in qs
 ]
 
-# Total = 45
-assert len(ALL_QUESTIONS) == 45, f"Expected 45 questions, got {len(ALL_QUESTIONS)}"
+# Total = 47 (board_governance and climate_transition each carry extra
+# absolute-threshold questions beyond the other themes' baseline count).
+assert len(ALL_QUESTIONS) == 47, f"Expected 47 questions, got {len(ALL_QUESTIONS)}"

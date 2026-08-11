@@ -25,8 +25,8 @@ def _supa():
 
 class CheckoutRequest(BaseModel):
     plan: str
-    success_url: str = "https://nestelance.com/settings/billing?success=1"
-    cancel_url: str  = "https://nestelance.com/settings/billing?cancelled=1"
+    success_url: str = "https://nestelance.com/settings?tab=subscription&success=1"
+    cancel_url: str  = "https://nestelance.com/billing?cancelled=1"
 
 @router.post("/checkout")
 async def create_checkout(body: CheckoutRequest, user: UserProfile = Depends(get_current_user)):
@@ -126,7 +126,7 @@ async def customer_portal(user: UserProfile = Depends(get_current_user)):
 
     session = stripe.billing_portal.Session.create(
         customer=customer_id,
-        return_url="https://nestelance.com/settings/billing",
+        return_url="https://nestelance.com/settings?tab=billing",
     )
     return {"portal_url": session.url}
 

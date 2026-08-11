@@ -115,6 +115,7 @@ async def bulk_reports(
                     "language": body.language,
                     "job_id": job_id,
                     "user_id": user.id,
+                    "user_plan": user.plan,
                 })
                 tasks_queued += 1
         except Exception:
@@ -128,7 +129,7 @@ async def bulk_report_status(job_id: str, user: UserProfile = Depends(_require_c
     supabase = _supa()
     reports = (supabase.table("reports")
         .select("company_id, status, file_url, created_at")
-        .like("id", f"%{job_id}%").execute())
+        .eq("job_id", job_id).execute())
     return {"job_id": job_id, "reports": reports.data or []}
 
 

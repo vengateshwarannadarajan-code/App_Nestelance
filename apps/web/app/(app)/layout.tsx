@@ -24,7 +24,9 @@ export default async function AppLayout({
 
   // Role-based redirects
   if (profile.role === "consultant") redirect("/clients");
-  if (profile.role === "admin") redirect("/admin/panel");
+  // NOTE: app/(admin)/panel/page.tsx resolves to route "/panel" — the (admin)
+  // segment is a route group and does not appear in the URL.
+  if (profile.role === "admin") redirect("/panel");
 
   // SME owner without company profile → onboarding
   if (profile.role === "sme_owner" && !profile.company_id) {
