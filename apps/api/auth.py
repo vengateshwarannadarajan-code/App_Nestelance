@@ -53,7 +53,7 @@ async def get_current_user(
         profile = (
             supabase.table("users")
             .select("id, email, role, plan, company_id, org_id, org_role, is_super_admin, "
-                    "organizations!org_id(path)")
+                    "status, deleted_at, organizations!org_id(path)")
             .eq("id", uid)
             .single()
             .execute()
@@ -65,6 +65,14 @@ async def get_current_user(
 
         data = dict(profile.data)
         org = data.pop("organizations", None)
+
+        if data.pop("deleted_at", None):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Account has been deleted")
+        if data.pop("status", "active") == "inactive":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Account is inactive")
+
         data["org_path"] = org.get("path") if org else None
 
         return UserProfile(**data)
