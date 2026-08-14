@@ -21,6 +21,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 from supabase import create_client
 
 from auth import get_current_user, can_view_org, UserProfile
+from services.activity_log import log_activity
 
 router = APIRouter()
 
@@ -184,6 +185,8 @@ async def create_user(body: UserCreate, user: UserProfile = Depends(get_current_
         "plan": "starter",
     }
     result = supa.table("users").upsert(row).execute()
+    log_activity(supa, user.id, body.org_id, "users", "create",
+                 {"invited_email": body.email, "org_role": body.org_role})
     return result.data[0] if result.data else row
 
 
@@ -228,6 +231,8 @@ async def update_user(user_id: str, body: UserUpdate, user: UserProfile = Depend
     result = supa.table("users").update(data).eq("id", user_id).execute()
     if not result.data:
         raise HTTPException(404, "User not found")
+    log_activity(supa, user.id, existing.data["org_id"], "users", "update",
+                 {"target_user_id": user_id, "fields": list(data.keys())})
     return result.data[0]
 
 
@@ -242,6 +247,8 @@ async def set_user_status(user_id: str, active: bool, user: UserProfile = Depend
         raise HTTPException(403, "Access denied")
 
     result = supa.table("users").update({"status": "active" if active else "inactive"}).eq("id", user_id).execute()
+    log_activity(supa, user.id, existing.data["org_id"], "users", "status_change",
+                 {"target_user_id": user_id, "active": active})
     return result.data[0]
 
 
@@ -257,6 +264,7 @@ async def delete_user(user_id: str, user: UserProfile = Depends(get_current_user
 
     from datetime import datetime, timezone
     supa.table("users").update({"deleted_at": datetime.now(timezone.utc).isoformat()}).eq("id", user_id).execute()
+    log_activity(supa, user.id, existing.data["org_id"], "users", "delete", {"target_user_id": user_id})
 
 
 @router.post("/{user_id}/reset-password")

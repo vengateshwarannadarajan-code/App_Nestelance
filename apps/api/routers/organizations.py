@@ -15,6 +15,7 @@ from pydantic import BaseModel, EmailStr
 from supabase import create_client
 
 from auth import get_current_user, can_view_org, UserProfile
+from services.activity_log import log_activity
 
 router = APIRouter()
 
@@ -90,6 +91,9 @@ async def create_organization(body: OrganizationCreate, user: UserProfile = Depe
     if not org_result.data:
         raise HTTPException(500, "Failed to create organization")
     org = org_result.data[0]
+
+    log_activity(supa, user.id, org["id"], "organizations", "create",
+                 {"org_type": body.org_type, "name": body.name, "parent_org_id": parent_org_id})
 
     # Auto-provision the org's first Admin user (T-USRS: "while onboarding
     # them, users also automatically need to be created in user management").
