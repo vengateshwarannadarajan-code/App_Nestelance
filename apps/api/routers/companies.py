@@ -57,14 +57,46 @@ class CompanyUpdate(BaseModel):
 
 @router.post("", status_code=201)
 async def create_company(body: CompanyCreate, user: UserProfile = Depends(get_current_user)):
+    supa = _supa()
+
+    # Enterprise = a `companies` row backed by an `organizations` row of
+    # type 'enterprise' (see 004_org_hierarchy.sql). If the creating user
+    # already belongs to an org allowed to onboard Enterprises (Aggregator/
+    # Distributor/Consultant admin, or Super Admin), this Enterprise becomes
+    # that org's child and inherits its rollup visibility. Otherwise — the
+    # common case, a self-service SME signing up directly on nestelance.com —
+    # it's a tree root with no channel partner, visible only to Super Admin.
+    parent_org_id = user.org_id if (user.org_id and user.org_role == "admin") else None
+
+    org_result = supa.table("organizations").insert({
+        "org_type": "enterprise",
+        "name": body.name,
+        "parent_org_id": parent_org_id,
+        "created_by": user.id,
+    }).execute()
+    if not org_result.data:
+        raise HTTPException(500, "Failed to create organization entry")
+    org = org_result.data[0]
+
     data = body.model_dump(exclude_none=True)
     data.setdefault("sector_group", "services")
-    result = _supa().table("companies").insert(data).execute()
+    data["org_id"] = org["id"]
+    result = supa.table("companies").insert(data).execute()
     if not result.data:
         raise HTTPException(500, "Failed to create company")
     company = result.data[0]
-    _supa().table("users").update({"company_id": company["id"]}).eq("id", user.id).execute()
-    return {"id": company["id"], "name": company["name"]}
+
+    # Link the creating user to both the legacy company_id column and the
+    # new org tree, as this Enterprise's Admin — unless they already belong
+    # to a different (parent) org, e.g. a Consultant creating this Enterprise
+    # on a client's behalf, in which case the user stays in their own org.
+    user_update = {"company_id": company["id"]}
+    if not user.org_id:
+        user_update["org_id"] = org["id"]
+        user_update["org_role"] = "admin"
+    supa.table("users").update(user_update).eq("id", user.id).execute()
+
+    return {"id": company["id"], "name": company["name"], "org_id": org["id"]}
 
 @router.get("/{company_id}")
 async def get_company(company_id: str, user: UserProfile = Depends(get_current_user)):

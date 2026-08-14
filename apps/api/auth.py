@@ -17,12 +17,24 @@ PLAN_RANK = {
 bearer_scheme = HTTPBearer()
 
 
+ORG_ROLE_RANK = {
+    "viewer":   0,
+    "verifier": 1,
+    "approver": 2,
+    "admin":    3,
+}
+
+
 class UserProfile(BaseModel):
     id: str
     email: str
     role: str
     plan: str
     company_id: str | None
+    org_id: str | None = None
+    org_role: str | None = None
+    is_super_admin: bool = False
+    org_path: str | None = None    # this user's own org's ancestor path, e.g. "/id1/id2/"
 
 
 async def get_current_user(
@@ -40,7 +52,8 @@ async def get_current_user(
         uid = user_response.user.id
         profile = (
             supabase.table("users")
-            .select("id, email, role, plan, company_id")
+            .select("id, email, role, plan, company_id, org_id, org_role, is_super_admin, "
+                    "organizations!org_id(path)")
             .eq("id", uid)
             .single()
             .execute()
@@ -50,13 +63,50 @@ async def get_current_user(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail="User profile not found")
 
-        return UserProfile(**profile.data)
+        data = dict(profile.data)
+        org = data.pop("organizations", None)
+        data["org_path"] = org.get("path") if org else None
+
+        return UserProfile(**data)
 
     except HTTPException:
         raise
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Authentication failed")
+
+
+def require_org_role(minimum_role: str):
+    """
+    Dependency factory for the admin/approver/verifier/viewer axis —
+    orthogonal to require_plan (subscription tier). Super Admin always
+    passes. Usage:
+        @router.post("/endpoint")
+        async def endpoint(user=Depends(require_org_role("approver"))):
+    """
+    async def _check(user: UserProfile = Depends(get_current_user)) -> UserProfile:
+        if user.is_super_admin:
+            return user
+        user_rank = ORG_ROLE_RANK.get(user.org_role or "", -1)
+        required_rank = ORG_ROLE_RANK.get(minimum_role, 0)
+        if user_rank < required_rank:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Org role '{minimum_role}' or higher required. "
+                       f"Current role: '{user.org_role}'",
+            )
+        return user
+
+    return _check
+
+
+def can_view_org(actor: UserProfile, target_org_path: str) -> bool:
+    """Self-or-descendant check mirroring the organizations_visibility RLS policy."""
+    if actor.is_super_admin:
+        return True
+    if not actor.org_path:
+        return False
+    return target_org_path.startswith(actor.org_path)
 
 
 def require_plan(minimum_plan: str):
