@@ -79,9 +79,15 @@ async def get_current_user(
 
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        # Was previously swallowed into a generic "Authentication failed"
+        # with no trace of what actually happened — this is almost always
+        # an expired/invalid JWT causing supabase.auth.get_user() to raise
+        # rather than return a null user, but logging it properly means the
+        # next occurrence is actually diagnosable instead of guessed at.
+        print(f"[auth.get_current_user] unexpected error: {type(e).__name__}: {e}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Authentication failed")
+                            detail="Session expired — please log in again")
 
 
 def require_org_role(minimum_role: str):
