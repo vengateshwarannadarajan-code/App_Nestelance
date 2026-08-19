@@ -19,6 +19,16 @@
 -- tab is what broke the last run.
 -- ============================================================
 
+-- ─── Bootstrap org (only if `organizations` is completely empty) ─
+-- Groups/Profiles below attach to "whichever org was created first" —
+-- if you haven't onboarded a real one yet via the admin UI, this
+-- creates a placeholder Enterprise org so the seed has somewhere to
+-- attach to. Safe to leave in place, or delete it later once you've
+-- onboarded a real organization.
+INSERT INTO organizations (org_type, name)
+SELECT 'enterprise', 'Demo SME'
+WHERE NOT EXISTS (SELECT 1 FROM organizations);
+
 -- ─── ACL permissions (platform-wide catalog) ───────────────────
 INSERT INTO acl_permissions (module, submodule, action, name) VALUES
   ('users',         NULL,             'create', 'Creer un utilisateur'),
