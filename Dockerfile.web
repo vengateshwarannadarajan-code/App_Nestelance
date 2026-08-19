@@ -12,11 +12,14 @@
 FROM node:20-slim
 WORKDIR /app
 
+# Single copy of everything needed, then install — avoids a separate
+# narrow COPY of just apps/web/package.json followed by a broader COPY
+# of the whole apps/web/ directory, which Railway's BuildKit choked on
+# with a stale checksum-ref error ("/apps/web": not found) even though
+# the directory was genuinely present in the build context.
 COPY package.json package-lock.json ./
-COPY apps/web/package.json ./apps/web/package.json
-RUN npm install
-
 COPY apps/web/ ./apps/web/
+RUN npm install
 
 RUN npm run build --workspace=@nest-elance/web
 
