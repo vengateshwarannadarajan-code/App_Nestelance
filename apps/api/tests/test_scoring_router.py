@@ -124,3 +124,185 @@ def test_shap_task_fired_non_blocking(mock_supa, mock_redis, mock_save):
         response = client.post("/api/scoring/score", json=VALID_REQUEST)
         assert response.status_code == 200
         # Task was called (or gracefully failed — both acceptable in test env)
+
+
+# ── Verify / Approve / Reject workflow (T-SCORE-WORKFLOW) ────────
+
+SUPER_ADMIN_USER = {"id": "admin-1", "email": "admin@example.com", "role": "admin",
+                     "plan": "consultant", "company_id": None, "is_super_admin": True}
+VERIFIER_USER = {"id": "verifier-1", "email": "verifier@example.com", "role": "sme_owner",
+                  "plan": "growth", "company_id": None, "org_id": "org-1", "org_role": "verifier",
+                  "org_path": "/org-1/"}
+APPROVER_USER = {"id": "approver-1", "email": "approver@example.com", "role": "sme_owner",
+                  "plan": "growth", "company_id": None, "org_id": "org-1", "org_role": "approver",
+                  "org_path": "/org-1/"}
+VIEWER_USER = {"id": "viewer-1", "email": "viewer@example.com", "role": "sme_owner",
+               "plan": "growth", "company_id": None, "org_id": "org-1", "org_role": "viewer",
+               "org_path": "/org-1/"}
+
+
+def _client_as(user_dict):
+    from main import app
+    from auth import get_current_user, UserProfile
+    app.dependency_overrides[get_current_user] = lambda: UserProfile(**user_dict)
+    return TestClient(app)
+
+
+class FakeResult:
+    def __init__(self, data):
+        self.data = data
+
+
+class FakeQuery:
+    """Minimal chainable stand-in for the supabase-py query builder —
+    every chain method returns self and ignores its arguments; only the
+    table this query was built from decides what .execute() returns."""
+    def __init__(self, data):
+        self._data = data
+
+    def __getattr__(self, name):
+        # select/eq/neq/in_/order/limit/update/insert/upsert/delete/single/... all chain
+        return lambda *a, **k: self
+
+    def execute(self):
+        return FakeResult(self._data)
+
+
+class FakeSupabase:
+    def __init__(self, table_data: dict):
+        self._table_data = table_data
+
+    def table(self, name):
+        return FakeQuery(self._table_data.get(name))
+
+
+DRAFT_SNAPSHOT = {"id": "snap-1", "company_id": "co-1", "status": "draft", "overall_score": 3.0}
+VERIFIED_SNAPSHOT = {"id": "snap-1", "company_id": "co-1", "status": "verified", "overall_score": 3.0}
+APPROVED_SNAPSHOT = {"id": "snap-1", "company_id": "co-1", "status": "approved", "overall_score": 3.0}
+COMPANY_ROW = {"org_id": "org-1", "organizations": {"path": "/org-1/"}}
+
+
+@patch("routers.scoring.get_snapshot", return_value=DRAFT_SNAPSHOT)
+@patch("routers.scoring._supa")
+def test_verify_draft_snapshot_as_super_admin_succeeds(mock_supa, mock_get):
+    mock_supa.return_value = FakeSupabase({
+        "companies": COMPANY_ROW,
+        "score_snapshots": [{**DRAFT_SNAPSHOT, "status": "verified"}],
+    })
+    client = _client_as(SUPER_ADMIN_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/verify")
+    assert response.status_code == 200
+    assert response.json()["status"] == "verified"
+
+
+@patch("routers.scoring.get_snapshot", return_value=VERIFIED_SNAPSHOT)
+@patch("routers.scoring._supa")
+def test_verify_already_verified_snapshot_returns_400(mock_supa, mock_get):
+    mock_supa.return_value = FakeSupabase({"companies": COMPANY_ROW})
+    client = _client_as(SUPER_ADMIN_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/verify")
+    assert response.status_code == 400
+
+
+def test_verify_as_viewer_returns_403():
+    """org_role rank check happens in the require_org_role dependency,
+    before the handler body even runs — no DB mocking needed."""
+    client = _client_as(VIEWER_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/verify")
+    assert response.status_code == 403
+
+
+@patch("routers.scoring.get_snapshot", return_value=DRAFT_SNAPSHOT)
+@patch("routers.scoring._supa")
+def test_approve_draft_snapshot_returns_400(mock_supa, mock_get):
+    """Can't approve — only verified snapshots may be approved."""
+    mock_supa.return_value = FakeSupabase({"companies": COMPANY_ROW})
+    client = _client_as(SUPER_ADMIN_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/approve")
+    assert response.status_code == 400
+
+
+@patch("routers.scoring.get_snapshot", return_value=VERIFIED_SNAPSHOT)
+@patch("routers.scoring._supa")
+def test_approve_verified_snapshot_as_super_admin_succeeds(mock_supa, mock_get):
+    mock_supa.return_value = FakeSupabase({
+        "companies": COMPANY_ROW,
+        "score_snapshots": [{**VERIFIED_SNAPSHOT, "status": "approved"}],
+    })
+    client = _client_as(SUPER_ADMIN_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/approve")
+    assert response.status_code == 200
+    assert response.json()["status"] == "approved"
+
+
+def test_approve_as_verifier_returns_403():
+    """Verifier lacks approver rank — require_org_role("approver") rejects it."""
+    client = _client_as(VERIFIER_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/approve")
+    assert response.status_code == 403
+
+
+@patch("routers.scoring.get_snapshot", return_value=DRAFT_SNAPSHOT)
+@patch("routers.scoring._supa")
+def test_reject_draft_snapshot_requires_reason(mock_supa, mock_get):
+    mock_supa.return_value = FakeSupabase({"companies": COMPANY_ROW})
+    client = _client_as(SUPER_ADMIN_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/reject", json={"reason": "   "})
+    assert response.status_code == 422
+
+
+@patch("routers.scoring.get_snapshot", return_value=DRAFT_SNAPSHOT)
+@patch("routers.scoring._supa")
+def test_reject_draft_snapshot_as_verifier_succeeds(mock_supa, mock_get):
+    mock_supa.return_value = FakeSupabase({
+        "companies": COMPANY_ROW,
+        "score_snapshots": [{**DRAFT_SNAPSHOT, "status": "rejected", "rejection_reason": "Incomplete data"}],
+    })
+    client = _client_as(VERIFIER_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/reject", json={"reason": "Incomplete data"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+
+
+@patch("routers.scoring.get_snapshot", return_value=VERIFIED_SNAPSHOT)
+@patch("routers.scoring._supa")
+def test_reject_verified_snapshot_as_verifier_returns_403(mock_supa, mock_get):
+    """Rejecting an already-verified snapshot needs approver rank, not just verifier."""
+    mock_supa.return_value = FakeSupabase({"companies": COMPANY_ROW})
+    client = _client_as(VERIFIER_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/reject", json={"reason": "Numbers look wrong"})
+    assert response.status_code == 403
+
+
+@patch("routers.scoring.get_snapshot", return_value=VERIFIED_SNAPSHOT)
+@patch("routers.scoring._supa")
+def test_reject_verified_snapshot_as_approver_succeeds(mock_supa, mock_get):
+    mock_supa.return_value = FakeSupabase({
+        "companies": COMPANY_ROW,
+        "score_snapshots": [{**VERIFIED_SNAPSHOT, "status": "rejected", "rejection_reason": "Numbers look wrong"}],
+    })
+    client = _client_as(APPROVER_USER)
+    response = client.post("/api/scoring/snapshot/snap-1/reject", json={"reason": "Numbers look wrong"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+
+
+@patch("routers.scoring._supa")
+def test_pending_queue_filters_by_visible_org(mock_supa):
+    mock_supa.return_value = FakeSupabase({
+        "score_snapshots": [DRAFT_SNAPSHOT],
+        "companies": [{"id": "co-1", "name": "Acme SME", "org_id": "org-1",
+                        "organizations": {"path": "/org-1/"}}],
+    })
+    client = _client_as(SUPER_ADMIN_USER)
+    response = client.get("/api/scoring/pending")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["snapshots"]) == 1
+    assert data["snapshots"][0]["company_name"] == "Acme SME"
+
+
+def test_pending_queue_as_viewer_returns_403():
+    client = _client_as(VIEWER_USER)
+    response = client.get("/api/scoring/pending")
+    assert response.status_code == 403
