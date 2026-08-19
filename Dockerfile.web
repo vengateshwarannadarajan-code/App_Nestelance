@@ -22,3 +22,4 @@ RUN npm run build --workspace=@nest-elance/web
 
 EXPOSE 3000
 CMD ["sh", "-c", "npm run start --workspace=@nest-elance/web -- -p ${PORT:-3000}"]
+
