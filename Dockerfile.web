@@ -1,0 +1,24 @@
+# apps/web (Next.js) — dedicated Dockerfile, separate from the root
+# Dockerfile which builds apps/api (Python/FastAPI). Railway's Next.js
+# service was previously misconfigured to build using that Python
+# Dockerfile after Root Directory was set, which obviously can't work.
+#
+# Build context is the repo root (not apps/web) because the only
+# package-lock.json lives at the workspace root — apps/web has no lockfile
+# of its own. apps/web doesn't actually depend on any sibling npm
+# workspace package (packages/* are Python-only, no package.json), so
+# this only needs the root manifest + apps/web itself, not the whole repo.
+
+FROM node:20-slim
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY apps/web/package.json ./apps/web/package.json
+RUN npm install
+
+COPY apps/web/ ./apps/web/
+
+RUN npm run build --workspace=@nest-elance/web
+
+EXPOSE 3000
+CMD ["sh", "-c", "npm run start --workspace=@nest-elance/web -- -p ${PORT:-3000}"]
