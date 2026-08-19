@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from routers import scoring, shap, simulate, reports, admin, companies, questionnaire, consultant, billing, organizations, users, audit
+from routers import scoring, shap, simulate, reports, admin, companies, questionnaire, consultant, billing, organizations, users, audit, acl, groups, user_profiles
 from auth import get_current_user
 
 
@@ -50,6 +50,9 @@ app.include_router(billing.router,      prefix="/api/billing",      tags=["Billi
 app.include_router(organizations.router,prefix="/api/organizations",tags=["Organizations"])
 app.include_router(users.router,        prefix="/api/users",        tags=["Users"])
 app.include_router(audit.router,        prefix="/api/audit",        tags=["Audit"])
+app.include_router(acl.router,          prefix="/api/acl",          tags=["ACL"])
+app.include_router(groups.router,       prefix="/api/groups",       tags=["Groups"])
+app.include_router(user_profiles.router,prefix="/api/user-profiles",tags=["UserProfiles"])
 
 
 @app.get("/health")

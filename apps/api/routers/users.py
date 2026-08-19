@@ -68,6 +68,8 @@ class UserCreate(BaseModel):
     dob: date | None = None
     org_id: str
     org_role: str  # admin | viewer | verifier | approver
+    group_id: str | None = None
+    profile_id: str | None = None  # if unset, the org's default profile is auto-assigned
 
     @field_validator("org_role")
     @classmethod
@@ -86,6 +88,8 @@ class UserUpdate(BaseModel):
     telephone: str | None = None
     dob: date | None = None
     org_role: str | None = None
+    group_id: str | None = None
+    profile_id: str | None = None
 
 
 def _can_manage_org(supa, actor: UserProfile, org_id: str) -> bool:
@@ -169,6 +173,18 @@ async def create_user(body: UserCreate, user: UserProfile = Depends(get_current_
     if not new_user_id:
         raise HTTPException(500, "Invite succeeded but no user id was returned")
 
+    # T-USR_PRF-05: "Set as Default" profile auto-applies to new users
+    # unless one is explicitly given.
+    profile_id = body.profile_id
+    if not profile_id:
+        default_profile = (
+            supa.table("user_profiles").select("id")
+            .eq("org_id", body.org_id).eq("is_default", True)
+            .limit(1).execute()
+        )
+        if default_profile.data:
+            profile_id = default_profile.data[0]["id"]
+
     row = {
         "id": new_user_id,
         "email": body.email,
@@ -181,6 +197,8 @@ async def create_user(body: UserCreate, user: UserProfile = Depends(get_current_
         "dob": body.dob.isoformat() if body.dob else None,
         "org_id": body.org_id,
         "org_role": body.org_role,
+        "group_id": body.group_id,
+        "profile_id": profile_id,
         "role": "sme_owner" if org.data["org_type"] == "enterprise" else "consultant",
         "plan": "starter",
     }
