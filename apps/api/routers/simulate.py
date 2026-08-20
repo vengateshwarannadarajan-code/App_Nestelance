@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Any
 from auth import get_current_user, require_plan, UserProfile
-from services.peer_benchmark import inject_peer_scores
+from services.peer_benchmark import inject_peer_scores, apply_peer_percentiles
 from buffer_rule import apply_buffer_rule
 
 router = APIRouter()
@@ -36,7 +36,9 @@ async def simulate(
 
     # Baseline: score at month 0 with no actions
     base_enriched = inject_peer_scores(body.base_responses, body.sector)
-    base_result = score_company(base_enriched, body.sector)
+    base_peer_pcts = {k.replace("_peer_score_", ""): v for k, v in base_enriched.items() if k.startswith("_peer_score_")}
+    base_adjusted = apply_peer_percentiles(base_enriched, base_peer_pcts)
+    base_result = score_company(base_adjusted, body.sector)
 
     monthly_projections[0] = {
         "month": 0,
@@ -62,6 +64,7 @@ async def simulate(
             if k.startswith("_peer_score_")
         }
         adjusted = apply_buffer_rule(enriched, body.previous_responses, peer_pcts)
+        adjusted = apply_peer_percentiles(adjusted, peer_pcts)
         result = score_company(adjusted, body.sector)
 
         monthly_projections[month] = {

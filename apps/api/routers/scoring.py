@@ -15,7 +15,7 @@ from supabase import create_client
 
 from auth import get_current_user, require_org_role, can_view_org, ORG_ROLE_RANK, UserProfile
 from db import save_snapshot, get_snapshot
-from services.peer_benchmark import inject_peer_scores
+from services.peer_benchmark import inject_peer_scores, apply_peer_percentiles
 from services.activity_log import log_activity
 
 router = APIRouter()
@@ -48,6 +48,7 @@ async def score_company_endpoint(body: ScoreRequest, user: UserProfile = Depends
 
     peer_pcts = {k.replace("_peer_score_", ""): v for k, v in enriched.items() if k.startswith("_peer_score_")}
     adjusted = apply_buffer_rule(enriched, prev_responses, peer_pcts)
+    adjusted = apply_peer_percentiles(adjusted, peer_pcts)
 
     result = score_company(adjusted, body.sector_group)
     snapshot_id = save_snapshot(body.company_id, user.id, result)

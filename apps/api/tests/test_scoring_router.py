@@ -71,6 +71,36 @@ def test_valid_score_request_returns_snapshot(mock_supa, mock_redis, mock_save):
     assert 0.0 <= data["overall_score"] <= 5.0
 
 
+@patch("routers.scoring.save_snapshot", return_value="snap-789")
+@patch("db.get_redis")
+@patch("routers.scoring._supa")
+def test_large_numeric_answer_does_not_saturate_theme_score(mock_supa, mock_redis, mock_save):
+    """Regression test for the missing peer-percentile normalisation:
+    a huge raw numeric answer (e.g. "999999" tCO2e/an) used to reach
+    score_company() unnormalised and saturate its theme to ~5.0
+    regardless of whether that's actually good or bad. With the
+    capping indicator explicitly met (True), the fixed pipeline should
+    land the theme score in a moderate range instead."""
+    mock_supa.return_value = MagicMock()
+    mock_supa.return_value.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+    mock_supa.return_value.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+    mock_redis.return_value = MagicMock()
+
+    client = _get_client()
+    request = {
+        "company_id": "co-456",
+        "sector_group": "manufacturing",
+        "responses": {
+            "climate_transition_q1": True,   # capping indicator met
+            "climate_transition_q2": 999999.0,  # absurdly large raw value
+        },
+    }
+    response = client.post("/api/scoring/score", json=request)
+    assert response.status_code == 200
+    climate_score = response.json()["themes"]["climate_transition"]["score"]
+    assert climate_score < 2.0, f"Expected a moderate score reflecting mostly-unanswered questions, got {climate_score} (looks saturated)"
+
+
 def test_unauthenticated_request_returns_401():
     from main import app
     from auth import get_current_user

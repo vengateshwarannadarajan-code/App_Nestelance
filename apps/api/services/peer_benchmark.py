@@ -48,3 +48,30 @@ def _get_peer_percentile(
     """
     # v1 stub
     return 0.5
+
+
+def apply_peer_percentiles(
+    responses: dict[str, Any],
+    peer_pcts: dict[str, float],
+) -> dict[str, Any]:
+    """
+    Replaces each numeric question's raw real-world value (e.g. "300"
+    tCO2e/an) with its 0.0-1.0 peer percentile before the responses
+    reach score_company() — that's the contract score_company() is
+    actually built and tested against (see
+    packages/scoring-engine/tests/test_engine.py's
+    _all_true_responses(), which documents numeric answers as
+    "1.0 (peer percentile max)", not a raw value).
+
+    inject_peer_scores() only *adds* `_peer_score_{id}` alongside the
+    original raw value; nothing was substituting it back in before this
+    — meaning every numeric answer reached the engine unnormalised and
+    saturated its theme toward 5.0 regardless of whether the real value
+    was good or bad. Booleans and `_`-prefixed keys pass through
+    unchanged.
+    """
+    finalized = dict(responses)
+    for q_id, pct in peer_pcts.items():
+        if q_id in finalized and not isinstance(finalized[q_id], bool):
+            finalized[q_id] = pct
+    return finalized
