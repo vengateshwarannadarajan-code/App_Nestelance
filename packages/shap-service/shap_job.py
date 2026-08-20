@@ -6,15 +6,27 @@ Computes Shapley values for a given score snapshot.
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../packages/scoring-engine"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../scripts"))
 
 import numpy as np
 from typing import Any
 
+_HERE = os.path.dirname(__file__)
+
 try:
     import modal
     stub = modal.App("nest-elance-shap")
-    image = modal.Image.debian_slim().pip_install(
-        "shap==0.45.1", "numpy", "scipy", "pyyaml", "scikit-learn"
+    image = (
+        modal.Image.debian_slim()
+        .pip_install("shap==0.45.1", "numpy", "scipy", "pyyaml", "scikit-learn")
+        # engine.py/questions.py, materiality/capping/threshold YAMLs, and the
+        # synthetic background-profile generator all live outside this
+        # directory — Modal only ever mounts shap_job.py itself by default,
+        # so without these the deployed function fails at import time with
+        # "No module named 'engine'"/"'seed_synthetic_profiles'".
+        .add_local_dir(os.path.join(_HERE, "../scoring-engine"), remote_path="/root/scoring_engine")
+        .add_local_dir(os.path.join(_HERE, "../config"), remote_path="/root/config")
+        .add_local_dir(os.path.join(_HERE, "../../scripts"), remote_path="/root/scripts")
     )
 except ImportError:
     # Local dev fallback — modal not required
@@ -48,6 +60,16 @@ def compute_shap(
             "top_drivers": [{"question_id": str, "impact": float, "direction": str}],
         }
     """
+    # On Modal, dependencies were baked in under /root/* (see the Image
+    # definition above) rather than living next to this file as they do
+    # locally — add both so this works either way. engine.py reads
+    # CONFIG_DIR at import time, so this must happen before the import.
+    for remote_path in ("/root/scoring_engine", "/root/scripts"):
+        if os.path.isdir(remote_path) and remote_path not in sys.path:
+            sys.path.insert(0, remote_path)
+    if os.path.isdir("/root/config"):
+        os.environ.setdefault("CONFIG_DIR", "/root/config")
+
     from seed_synthetic_profiles import load_background
     from engine import score_company
     import shap
