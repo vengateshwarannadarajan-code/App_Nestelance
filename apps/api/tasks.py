@@ -46,9 +46,13 @@ def trigger_shap(self, snapshot_id: str, responses: dict, sector_group: str) -> 
         return {"status": "cached", "snapshot_id": snapshot_id}
 
     try:
-        # Call Modal function
+        # Call Modal function. Function.lookup() was removed in modal>=1.0
+        # (see requirements.txt — was pinned to 0.64.49, which Modal's
+        # servers now reject outright as "too old" and refuse to connect
+        # at all, so every SHAP computation was failing before even
+        # reaching this call). from_name() is the current equivalent.
         import modal
-        fn = modal.Function.lookup("nest-elance-shap", "run_shap")
+        fn = modal.Function.from_name("nest-elance-shap", "run_shap")
         result = fn.remote(snapshot_id, responses, sector_group)
 
         # Persist result
