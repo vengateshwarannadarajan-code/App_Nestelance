@@ -105,13 +105,20 @@ def get_shap_result(snapshot_id: str) -> Optional[dict]:
     except Exception:
         pass
 
-    # Supabase fallback
+    # Supabase fallback. maybe_single() (not single()) — SHAP not having
+    # finished computing yet for this snapshot is an expected, normal
+    # state (every caller checks this return value for falsy and treats
+    # it as "pending"), not an error condition. single() raises
+    # postgrest.exceptions.APIError (PGRST116, "0 rows") in that case
+    # instead of returning None, which crashed both GET
+    # /api/shap/results/{id} and routers.reports._build_recommendations
+    # with a 500 any time SHAP genuinely hadn't finished yet.
     supabase = _supa()
     result = (
         supabase.table("shap_results")
         .select("*")
         .eq("snapshot_id", snapshot_id)
-        .single()
+        .maybe_single()
         .execute()
     )
-    return result.data
+    return result.data if result else None
