@@ -1,19 +1,114 @@
 """T-REPORT-003 + T-REPORT-005: Reports router"""
-import io, os, uuid
+import io, os, sys, uuid
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from supabase import create_client
 from auth import get_current_user, require_plan, UserProfile
-from services.report_generator import generate_pdf_report
+from services.report_generator import generate_pdf_report, THEME_LABELS, CSRD_MAPPING
 
 router = APIRouter()
 
-MOCK_RECS = [
-    {"action": "Fixer un objectif de réduction GHG", "scoreImpact": 0.8, "effort": "Low", "csrdMapping": "ESRS E1-4"},
-    {"action": "Nommer un membre indépendant au conseil", "scoreImpact": 0.6, "effort": "Medium", "csrdMapping": "ESRS G1-2"},
-    {"action": "Désigner un DPO", "scoreImpact": 0.5, "effort": "Low", "csrdMapping": "ESRS G1-1"},
-]
+# Needed for _build_recommendations()'s question_id -> theme_id lookup.
+# Set up independently (not relying on routers.scoring having already
+# run this at import time) since the Celery worker process imports
+# this module via tasks.py -> routers.reports directly, never through
+# main.py's router import order.
+for _path in ["/app/packages/scoring-engine",
+              os.path.join(os.path.dirname(__file__), "../../../packages/scoring-engine")]:
+    if os.path.exists(_path) and _path not in sys.path:
+        sys.path.insert(0, _path)
+
+_CONFIG_DIR = os.environ.get("CONFIG_DIR", os.path.join(os.path.dirname(__file__), "../../../packages/config"))
+if not os.path.exists(_CONFIG_DIR):
+    _CONFIG_DIR = "/app/packages/config"
+
+
+def _load_config_yaml(name: str) -> dict:
+    import yaml
+    with open(os.path.join(_CONFIG_DIR, name)) as f:
+        return yaml.safe_load(f)
+
+
+_CAPPING_QUESTION_IDS = {
+    cfg["question_id"] for cfg in _load_config_yaml("capping_indicators.yaml")["capping_indicators"].values()
+}
+
+_EFFORT_LABELS = {
+    "aspirational_capping": {"fr": "Facile",  "en": "Easy"},
+    "aspirational":         {"fr": "Facile",  "en": "Easy"},
+    "performance":          {"fr": "Difficile", "en": "Hard"},
+}
+
+
+def _build_recommendations(snapshot_id: str, language: str, limit: int = 5) -> list[dict]:
+    """
+    Real recommendations from this snapshot's actual SHAP values — the
+    top negative-contribution questions (the ones dragging the score
+    down), not a fixed canned list. If SHAP hasn't finished computing
+    yet (it's async — can race a report generated right after scoring),
+    returns an empty list rather than fabricated data; the PDF template
+    simply renders no recommendation cards in that case.
+
+    "effort" is a heuristic, not a real estimate: aspirational
+    (policy/commitment) questions are generally lower-effort than
+    performance (demonstrated-outcome) ones — there's no real effort
+    classification anywhere in the data model to draw from instead.
+    """
+    from db import get_shap_result
+    from questions import QUESTIONS_BY_THEME
+
+    shap = get_shap_result(snapshot_id)
+    if not shap or not shap.get("shap_values"):
+        return []
+
+    lang = language if language in ("fr", "en") else "fr"
+    question_meta = {
+        q["id"]: {"theme_id": theme_id, "type": q["type"]}
+        for theme_id, qs in QUESTIONS_BY_THEME.items()
+        for q in qs
+    }
+
+    negative = sorted(
+        ((qid, val) for qid, val in shap["shap_values"].items() if val < 0),
+        key=lambda item: item[1],
+    )[:limit]
+
+    recommendations = []
+    for qid, impact in negative:
+        meta = question_meta.get(qid)
+        if not meta:
+            continue
+        theme_id = meta["theme_id"]
+        theme_label = THEME_LABELS.get(theme_id, {}).get(lang, theme_id)
+        csrd = CSRD_MAPPING.get(theme_id, {})
+        is_capping = qid in _CAPPING_QUESTION_IDS
+        effort_key = "aspirational_capping" if is_capping else meta["type"]
+        effort = _EFFORT_LABELS.get(effort_key, _EFFORT_LABELS["performance"])[lang]
+
+        if is_capping:
+            action = (
+                f"Réévaluer votre réponse à la question clé du thème « {theme_label} » "
+                f"— une réponse positive lève le plafonnement à 3,0/5 sur ce thème."
+                if lang == "fr" else
+                f"Revisit the key (gateway) question for the “{theme_label}” theme — "
+                f"a positive answer lifts the 3.0/5 cap on this theme."
+            )
+        else:
+            action = (
+                f"Améliorer votre performance sur le thème « {theme_label} »."
+                if lang == "fr" else
+                f"Improve your performance on the “{theme_label}” theme."
+            )
+
+        recommendations.append({
+            "action": action,
+            "scoreImpact": round(abs(impact), 2),
+            "effort": effort,
+            "csrdMapping": f"ESRS {csrd['esrs']}" if csrd.get("esrs") else "",
+        })
+    return recommendations
+
 
 def _supa():
     return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
@@ -77,7 +172,7 @@ def generate_and_store_report(
             company_name=company_name,
             snapshot=snapshot,
             theme_scores=theme_scores,
-            recommendations=MOCK_RECS,
+            recommendations=_build_recommendations(snapshot_id, language),
             language=language,
             framework=framework,
             logo_url=logo_url,
