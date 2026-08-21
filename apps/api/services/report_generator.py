@@ -63,13 +63,19 @@ def _ring_svg(score: float, size: int = 80) -> str:
     offset = circ * (1 - score / 5)
     band = _score_band(score)
     color = SCORE_COLORS[band]
+    # The -90deg rotation (so the arc starts at 12 o'clock) has to be an
+    # SVG-native `transform` attribute on a <g>, not a CSS
+    # `style="transform:..."` on the <svg> root — WeasyPrint doesn't
+    # support the latter here and raises
+    # "'super' object has no attribute 'transform'" at render time.
     return (
-        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" '
-        f'style="transform:rotate(-90deg)">'
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
+        f'<g transform="rotate(-90 {cx} {cy})">'
         f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="#E0E0E0" stroke-width="6"/>'
         f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{color}" '
         f'stroke-width="6" stroke-linecap="round" '
         f'stroke-dasharray="{circ:.2f}" stroke-dashoffset="{offset:.2f}"/>'
+        f'</g>'
         f'</svg>'
     )
 
