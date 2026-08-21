@@ -47,8 +47,8 @@ async def financial_risk(
     # Fetch company profile
     co_res = (supabase.table("companies")
         .select("revenue_band, eu_supply_chain_pct, scope12_emissions_t")
-        .eq("id", company_id).single().execute())
-    company = co_res.data or {}
+        .eq("id", company_id).maybe_single().execute())
+    company = (co_res.data if co_res else None) or {}
 
     revenue = REVENUE_MIDPOINTS.get(company.get("revenue_band", "1m-10m"), 5_000_000)
     eu_pct = float(company.get("eu_supply_chain_pct") or 0) / 100

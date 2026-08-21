@@ -58,16 +58,19 @@ def save_snapshot(
 
 
 def get_snapshot(snapshot_id: str) -> Optional[dict]:
-    """Fetches snapshot from Supabase by ID."""
+    """Fetches snapshot from Supabase by ID. Returns None if not found —
+    .single() (not maybe_single()) used to raise instead, so every
+    caller's `if not snap: raise HTTPException(404, ...)` was dead code
+    and a nonexistent snapshot_id crashed with an unhandled 500."""
     supabase = _supa()
     result = (
         supabase.table("score_snapshots")
         .select("*")
         .eq("id", snapshot_id)
-        .single()
+        .maybe_single()
         .execute()
     )
-    return result.data
+    return result.data if result else None
 
 
 # ── SHAP ──────────────────────────────────────────────────────

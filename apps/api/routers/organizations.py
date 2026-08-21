@@ -55,8 +55,8 @@ class OrganizationOut(BaseModel):
 def _actor_org_type(supa, user: UserProfile) -> str | None:
     if not user.org_id:
         return None
-    org = supa.table("organizations").select("org_type").eq("id", user.org_id).single().execute()
-    return org.data["org_type"] if org.data else None
+    org = supa.table("organizations").select("org_type").eq("id", user.org_id).maybe_single().execute()
+    return org.data["org_type"] if org and org.data else None
 
 
 @router.post("", status_code=201, response_model=OrganizationOut)
@@ -144,8 +144,8 @@ async def list_organizations(org_type: str | None = None, user: UserProfile = De
 @router.get("/{org_id}")
 async def get_organization(org_id: str, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    result = supa.table("organizations").select("*").eq("id", org_id).single().execute()
-    if not result.data:
+    result = supa.table("organizations").select("*").eq("id", org_id).maybe_single().execute()
+    if not result or not result.data:
         raise HTTPException(404, "Organization not found")
     if not can_view_org(user, result.data["path"]):
         raise HTTPException(403, "Access denied")
@@ -161,8 +161,8 @@ class OrganizationUpdate(BaseModel):
 @router.patch("/{org_id}")
 async def update_organization(org_id: str, body: OrganizationUpdate, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    existing = supa.table("organizations").select("path, org_type").eq("id", org_id).single().execute()
-    if not existing.data:
+    existing = supa.table("organizations").select("path, org_type").eq("id", org_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "Organization not found")
     if not (user.is_super_admin or (user.org_id == org_id and user.org_role == "admin")):
         raise HTTPException(403, "Only that organization's own Admin (or Super Admin) can edit it")

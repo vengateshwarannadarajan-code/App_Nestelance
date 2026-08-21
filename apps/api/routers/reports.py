@@ -138,15 +138,15 @@ def generate_and_store_report(
     """
     supabase = _supa()
 
-    snap_res = supabase.table("score_snapshots").select("*").eq("id", snapshot_id).single().execute()
-    if not snap_res.data:
+    snap_res = supabase.table("score_snapshots").select("*").eq("id", snapshot_id).maybe_single().execute()
+    if not snap_res or not snap_res.data:
         raise ValueError("Snapshot not found")
     snapshot = snap_res.data
     theme_scores = snapshot.get("theme_scores", {})
 
     # Fetch company (for name, logo — T-REPORT-005)
-    co_res = supabase.table("companies").select("name, logo_url").eq("id", company_id).single().execute()
-    company = co_res.data or {}
+    co_res = supabase.table("companies").select("name, logo_url").eq("id", company_id).maybe_single().execute()
+    company = (co_res.data if co_res else None) or {}
     company_name = company.get("name", "Votre Entreprise")
 
     # Logo only for professional/consultant (T-REPORT-005)
@@ -234,8 +234,8 @@ async def get_reports(company_id: str, user: UserProfile = Depends(get_current_u
 @router.get("/download/{report_id}")
 async def download_report(report_id: str, user: UserProfile = Depends(get_current_user)):
     supabase = _supa()
-    res = supabase.table("reports").select("*").eq("id", report_id).single().execute()
-    if not res.data:
+    res = supabase.table("reports").select("*").eq("id", report_id).maybe_single().execute()
+    if not res or not res.data:
         raise HTTPException(404, "Report not found")
     if res.data.get("company_id") != user.company_id:
         raise HTTPException(403, "Access denied")

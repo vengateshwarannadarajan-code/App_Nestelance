@@ -109,7 +109,7 @@ async def test_valid_jwt_returns_user_profile():
     mock_user.id = "u-123"
     mock_client = MagicMock()
     mock_client.auth.get_user.return_value = MagicMock(user=mock_user)
-    mock_client.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = {
+    mock_client.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {
         "id": "u-123", "email": "test@example.com", "role": "sme_owner",
         "plan": "growth", "company_id": "co-456"
     }

@@ -95,8 +95,8 @@ async def create_group(body: GroupCreate, user: UserProfile = Depends(get_curren
 @router.get("/{group_id}")
 async def get_group(group_id: str, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    result = supa.table("user_groups").select("*, organizations!org_id(path)").eq("id", group_id).single().execute()
-    if not result.data:
+    result = supa.table("user_groups").select("*, organizations!org_id(path)").eq("id", group_id).maybe_single().execute()
+    if not result or not result.data:
         raise HTTPException(404, "Group not found")
     org = result.data.pop("organizations", None)
     if not user.is_super_admin and not (org and can_view_org(user, org["path"])):
@@ -107,8 +107,8 @@ async def get_group(group_id: str, user: UserProfile = Depends(get_current_user)
 @router.patch("/{group_id}")
 async def update_group(group_id: str, body: GroupUpdate, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    existing = supa.table("user_groups").select("org_id").eq("id", group_id).single().execute()
-    if not existing.data:
+    existing = supa.table("user_groups").select("org_id").eq("id", group_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "Group not found")
     if not _can_manage_org(user, existing.data["org_id"]):
         raise HTTPException(403, "Access denied")
@@ -120,16 +120,16 @@ async def update_group(group_id: str, body: GroupUpdate, user: UserProfile = Dep
         _attach_permissions(supa, group_id, body.permission_ids)
 
     log_activity(supa, user.id, existing.data["org_id"], "user_groups", "update", {"group_id": group_id})
-    result = supa.table("user_groups").select("*").eq("id", group_id).single().execute()
-    return _serialize(supa, result.data)
+    result = supa.table("user_groups").select("*").eq("id", group_id).maybe_single().execute()
+    return _serialize(supa, result.data if result else None)
 
 
 @router.post("/{group_id}/clone", status_code=201)
 async def clone_group(group_id: str, user: UserProfile = Depends(get_current_user)):
     """T-USR_GRP-10: Clone option."""
     supa = _supa()
-    existing = supa.table("user_groups").select("*").eq("id", group_id).single().execute()
-    if not existing.data:
+    existing = supa.table("user_groups").select("*").eq("id", group_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "Group not found")
     if not _can_manage_org(user, existing.data["org_id"]):
         raise HTTPException(403, "Access denied")
@@ -152,8 +152,8 @@ async def clone_group(group_id: str, user: UserProfile = Depends(get_current_use
 @router.delete("/{group_id}", status_code=204)
 async def delete_group(group_id: str, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    existing = supa.table("user_groups").select("org_id").eq("id", group_id).single().execute()
-    if not existing.data:
+    existing = supa.table("user_groups").select("org_id").eq("id", group_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "Group not found")
     if not _can_manage_org(user, existing.data["org_id"]):
         raise HTTPException(403, "Access denied")

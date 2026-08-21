@@ -65,8 +65,8 @@ async def create_permission(body: PermissionCreate, user: UserProfile = Depends(
 @router.get("/{permission_id}")
 async def get_permission(permission_id: str, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    result = supa.table("acl_permissions").select("*").eq("id", permission_id).single().execute()
-    if not result.data:
+    result = supa.table("acl_permissions").select("*").eq("id", permission_id).maybe_single().execute()
+    if not result or not result.data:
         raise HTTPException(404, "Permission not found")
     return result.data
 

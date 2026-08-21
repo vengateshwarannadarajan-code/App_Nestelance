@@ -55,11 +55,18 @@ async def get_current_user(
             .select("id, email, role, plan, company_id, org_id, org_role, is_super_admin, "
                     "status, deleted_at, organizations!org_id(path)")
             .eq("id", uid)
-            .single()
+            .maybe_single()
             .execute()
         )
 
-        if not profile.data:
+        # .single() (not maybe_single()) raises instead of returning
+        # data=None on a missing row — a valid JWT with no matching
+        # public.users row (auth-users/public-users can genuinely
+        # desync) was crashing every request with an unhandled 500
+        # instead of this clean 401. The outer except below did catch
+        # it, but as a generic "Session expired" rather than this more
+        # accurate message.
+        if not profile or not profile.data:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                 detail="User profile not found")
 

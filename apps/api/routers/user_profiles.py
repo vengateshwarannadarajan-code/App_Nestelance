@@ -168,8 +168,8 @@ async def create_profile(body: ProfileCreate, user: UserProfile = Depends(get_cu
 @router.get("/{profile_id}")
 async def get_profile(profile_id: str, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    result = supa.table("user_profiles").select("*, organizations!org_id(path)").eq("id", profile_id).single().execute()
-    if not result.data:
+    result = supa.table("user_profiles").select("*, organizations!org_id(path)").eq("id", profile_id).maybe_single().execute()
+    if not result or not result.data:
         raise HTTPException(404, "Profile not found")
     org = result.data.pop("organizations", None)
     if not user.is_super_admin and not (org and can_view_org(user, org["path"])):
@@ -180,8 +180,8 @@ async def get_profile(profile_id: str, user: UserProfile = Depends(get_current_u
 @router.patch("/{profile_id}")
 async def update_profile(profile_id: str, body: ProfileUpdate, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    existing = supa.table("user_profiles").select("org_id").eq("id", profile_id).single().execute()
-    if not existing.data:
+    existing = supa.table("user_profiles").select("org_id").eq("id", profile_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "Profile not found")
     if not _can_manage_org(user, existing.data["org_id"]):
         raise HTTPException(403, "Access denied")
@@ -201,8 +201,8 @@ async def update_profile(profile_id: str, body: ProfileUpdate, user: UserProfile
 @router.delete("/{profile_id}", status_code=204)
 async def delete_profile(profile_id: str, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
-    existing = supa.table("user_profiles").select("org_id").eq("id", profile_id).single().execute()
-    if not existing.data:
+    existing = supa.table("user_profiles").select("org_id").eq("id", profile_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "Profile not found")
     if not _can_manage_org(user, existing.data["org_id"]):
         raise HTTPException(403, "Access denied")

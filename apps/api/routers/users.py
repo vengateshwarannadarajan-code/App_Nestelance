@@ -157,8 +157,8 @@ async def create_user(body: UserCreate, user: UserProfile = Depends(get_current_
     if not _can_manage_org(supa, user, body.org_id):
         raise HTTPException(403, "Only that organization's own Admin (or Super Admin) can add users to it.")
 
-    org = supa.table("organizations").select("org_type").eq("id", body.org_id).single().execute()
-    if not org.data:
+    org = supa.table("organizations").select("org_type").eq("id", body.org_id).maybe_single().execute()
+    if not org or not org.data:
         raise HTTPException(404, "Organization not found")
 
     try:
@@ -215,9 +215,9 @@ async def get_user(user_id: str, user: UserProfile = Depends(get_current_user)):
         supa.table("users")
         .select("id, email, full_name, username, mobile, designation, department, telephone, dob, "
                 "org_id, org_role, status, deleted_at, created_at, organizations!org_id(name, org_type, path)")
-        .eq("id", user_id).single().execute()
+        .eq("id", user_id).maybe_single().execute()
     )
-    if not result.data:
+    if not result or not result.data:
         raise HTTPException(404, "User not found")
     org = result.data.get("organizations")
     if user_id != user.id and not (org and can_view_org(user, org["path"])):
@@ -231,8 +231,8 @@ async def update_user(user_id: str, body: UserUpdate, user: UserProfile = Depend
                       body.designation, body.department, body.telephone, body.dob)
 
     supa = _supa()
-    existing = supa.table("users").select("org_id").eq("id", user_id).single().execute()
-    if not existing.data:
+    existing = supa.table("users").select("org_id").eq("id", user_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "User not found")
     if not (user_id == user.id or _can_manage_org(supa, user, existing.data["org_id"])):
         raise HTTPException(403, "Access denied")
@@ -258,8 +258,8 @@ async def update_user(user_id: str, body: UserUpdate, user: UserProfile = Depend
 async def set_user_status(user_id: str, active: bool, user: UserProfile = Depends(get_current_user)):
     """T-USRS-48: Active/Inactive toggle — inactive users are blocked at auth.get_current_user."""
     supa = _supa()
-    existing = supa.table("users").select("org_id").eq("id", user_id).single().execute()
-    if not existing.data:
+    existing = supa.table("users").select("org_id").eq("id", user_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "User not found")
     if not _can_manage_org(supa, user, existing.data["org_id"]):
         raise HTTPException(403, "Access denied")
@@ -274,8 +274,8 @@ async def set_user_status(user_id: str, active: bool, user: UserProfile = Depend
 async def delete_user(user_id: str, user: UserProfile = Depends(get_current_user)):
     """Soft delete — T-USRS-47 requires deleted users to remain viewable."""
     supa = _supa()
-    existing = supa.table("users").select("org_id").eq("id", user_id).single().execute()
-    if not existing.data:
+    existing = supa.table("users").select("org_id").eq("id", user_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "User not found")
     if not _can_manage_org(supa, user, existing.data["org_id"]):
         raise HTTPException(403, "Access denied")
@@ -289,8 +289,8 @@ async def delete_user(user_id: str, user: UserProfile = Depends(get_current_user
 async def reset_password(user_id: str, user: UserProfile = Depends(get_current_user)):
     """T-USRS-15: Reset Password — sends a real Supabase reset email."""
     supa = _supa()
-    existing = supa.table("users").select("org_id, email").eq("id", user_id).single().execute()
-    if not existing.data:
+    existing = supa.table("users").select("org_id, email").eq("id", user_id).maybe_single().execute()
+    if not existing or not existing.data:
         raise HTTPException(404, "User not found")
     if not (user_id == user.id or _can_manage_org(supa, user, existing.data["org_id"])):
         raise HTTPException(403, "Access denied")

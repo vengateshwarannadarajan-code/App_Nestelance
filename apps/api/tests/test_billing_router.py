@@ -27,8 +27,8 @@ def _client():
 
 def _supa_with_customer_id(customer_id):
     mock_client = MagicMock()
-    mock_client.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = (
-        {"stripe_customer_id": customer_id} if customer_id else {}
+    mock_client.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = (
+        {"stripe_customer_id": customer_id} if customer_id else None
     )
     return mock_client
 

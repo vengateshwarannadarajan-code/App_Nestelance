@@ -107,8 +107,8 @@ class RejectRequest(BaseModel):
 def _company_org_path(supa, company_id: str) -> str | None:
     co = (supa.table("companies")
         .select("org_id, organizations!org_id(path)")
-        .eq("id", company_id).single().execute())
-    if not co.data or not co.data.get("organizations"):
+        .eq("id", company_id).maybe_single().execute())
+    if not co or not co.data or not co.data.get("organizations"):
         return None
     return co.data["organizations"]["path"]
 
@@ -116,8 +116,8 @@ def _company_org_path(supa, company_id: str) -> str | None:
 def _assert_can_review(supa, user: UserProfile, company_id: str) -> str | None:
     """Returns the company's org_id (for activity logging) if access is allowed."""
     if user.is_super_admin:
-        co = supa.table("companies").select("org_id").eq("id", company_id).single().execute()
-        return co.data["org_id"] if co.data else None
+        co = supa.table("companies").select("org_id").eq("id", company_id).maybe_single().execute()
+        return co.data["org_id"] if co and co.data else None
 
     org_path = _company_org_path(supa, company_id)
     if not org_path or not can_view_org(user, org_path):

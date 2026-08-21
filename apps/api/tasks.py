@@ -111,7 +111,7 @@ def _get_company_from_snapshot(snapshot_id: str) -> str | None:
     try:
         from supabase import create_client
         supa = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
-        result = supa.table("score_snapshots").select("company_id").eq("id", snapshot_id).single().execute()
-        return result.data.get("company_id") if result.data else None
+        result = supa.table("score_snapshots").select("company_id").eq("id", snapshot_id).maybe_single().execute()
+        return result.data.get("company_id") if result and result.data else None
     except Exception:
         return None

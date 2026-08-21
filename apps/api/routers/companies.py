@@ -100,8 +100,8 @@ async def create_company(body: CompanyCreate, user: UserProfile = Depends(get_cu
 
 @router.get("/{company_id}")
 async def get_company(company_id: str, user: UserProfile = Depends(get_current_user)):
-    result = _supa().table("companies").select("*").eq("id", company_id).single().execute()
-    if not result.data:
+    result = _supa().table("companies").select("*").eq("id", company_id).maybe_single().execute()
+    if not result or not result.data:
         raise HTTPException(404, "Company not found")
     return result.data
 
@@ -133,8 +133,8 @@ async def materiality_preview(company_id: str, sector: str = Query(...), user: U
 
 @router.get("/{company_id}/sector-averages")
 async def sector_averages(company_id: str, user: UserProfile = Depends(get_current_user)):
-    company = _supa().table("companies").select("sector_group").eq("id", company_id).single().execute()
-    if not company.data:
+    company = _supa().table("companies").select("sector_group").eq("id", company_id).maybe_single().execute()
+    if not company or not company.data:
         raise HTTPException(404, "Company not found")
     sector = company.data.get("sector_group", "services")
     return {"company_id": company_id, "sector": sector,

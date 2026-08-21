@@ -101,8 +101,8 @@ async def suspend_client(user_id: str, admin: UserProfile = Depends(_require_adm
 @router.delete("/clients/{user_id}")
 async def delete_client(user_id: str, admin: UserProfile = Depends(_require_admin)):
     supabase = _supa()
-    user = supabase.table("users").select("company_id").eq("id", user_id).single().execute()
-    if user.data and user.data.get("company_id"):
+    user = supabase.table("users").select("company_id").eq("id", user_id).maybe_single().execute()
+    if user and user.data and user.data.get("company_id"):
         cid = user.data["company_id"]
         for table in ["questionnaire_responses","score_snapshots","shap_results","simulator_plans","reports","api_keys"]:
             supabase.table(table).delete().eq("company_id", cid).execute()

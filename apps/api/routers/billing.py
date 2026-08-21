@@ -48,8 +48,8 @@ async def create_checkout(body: CheckoutRequest, user: UserProfile = Depends(get
         raise HTTPException(400, "Cannot downgrade via checkout. Use the cancel endpoint instead.")
 
     supabase = _supa()
-    user_rec = supabase.table("users").select("stripe_customer_id").eq("id", user.id).single().execute()
-    customer_id = (user_rec.data or {}).get("stripe_customer_id")
+    user_rec = supabase.table("users").select("stripe_customer_id").eq("id", user.id).maybe_single().execute()
+    customer_id = ((user_rec.data if user_rec else None) or {}).get("stripe_customer_id")
 
     session_params = {
         "mode": "subscription",
@@ -111,8 +111,8 @@ async def stripe_webhook(request: Request):
 @router.post("/cancel")
 async def cancel_subscription(user: UserProfile = Depends(get_current_user)):
     supabase = _supa()
-    user_rec = supabase.table("users").select("stripe_customer_id").eq("id", user.id).single().execute()
-    customer_id = (user_rec.data or {}).get("stripe_customer_id")
+    user_rec = supabase.table("users").select("stripe_customer_id").eq("id", user.id).maybe_single().execute()
+    customer_id = ((user_rec.data if user_rec else None) or {}).get("stripe_customer_id")
     if not customer_id:
         raise HTTPException(400, "No active subscription found")
 
@@ -133,8 +133,8 @@ async def cancel_subscription(user: UserProfile = Depends(get_current_user)):
 async def customer_portal(user: UserProfile = Depends(get_current_user)):
     """T-BILLING-005: Stripe Customer Portal session"""
     supabase = _supa()
-    user_rec = supabase.table("users").select("stripe_customer_id").eq("id", user.id).single().execute()
-    customer_id = (user_rec.data or {}).get("stripe_customer_id")
+    user_rec = supabase.table("users").select("stripe_customer_id").eq("id", user.id).maybe_single().execute()
+    customer_id = ((user_rec.data if user_rec else None) or {}).get("stripe_customer_id")
     if not customer_id:
         raise HTTPException(400, "No Stripe customer found")
 
@@ -152,8 +152,8 @@ async def customer_portal(user: UserProfile = Depends(get_current_user)):
 async def get_invoices(user: UserProfile = Depends(get_current_user)):
     """T-BILLING-004: Invoice list"""
     supabase = _supa()
-    user_rec = supabase.table("users").select("stripe_customer_id").eq("id", user.id).single().execute()
-    customer_id = (user_rec.data or {}).get("stripe_customer_id")
+    user_rec = supabase.table("users").select("stripe_customer_id").eq("id", user.id).maybe_single().execute()
+    customer_id = ((user_rec.data if user_rec else None) or {}).get("stripe_customer_id")
     if not customer_id:
         return {"invoices": []}
 
