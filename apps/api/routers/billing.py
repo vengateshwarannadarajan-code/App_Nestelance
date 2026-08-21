@@ -23,6 +23,15 @@ PLAN_RANK = {"starter": 0, "growth": 1, "professional": 2, "consultant": 3}
 def _supa():
     return create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
 
+
+def _stripe_error_detail(e: "stripe.error.StripeError") -> str:
+    """None of the Stripe calls below were wrapped — any real Stripe
+    error (bad price/product id, wrong test/live mode, card declined,
+    etc.) crashed with a raw unhandled-exception 500 instead of a
+    usable message. Surfaced live: STRIPE_PRICE_* was set to a Product
+    id (prod_...) instead of a Price id (price_...)."""
+    return str(e)
+
 class CheckoutRequest(BaseModel):
     plan: str
     success_url: str = "https://nestelance.com/settings?tab=subscription&success=1"
@@ -55,7 +64,10 @@ async def create_checkout(body: CheckoutRequest, user: UserProfile = Depends(get
     else:
         session_params["customer_email"] = user.email
 
-    session = stripe.checkout.Session.create(**session_params)
+    try:
+        session = stripe.checkout.Session.create(**session_params)
+    except stripe.error.StripeError as e:
+        raise HTTPException(502, f"Stripe checkout failed: {_stripe_error_detail(e)}")
     return {"checkout_url": session.url}
 
 
@@ -104,11 +116,13 @@ async def cancel_subscription(user: UserProfile = Depends(get_current_user)):
     if not customer_id:
         raise HTTPException(400, "No active subscription found")
 
-    subs = stripe.Subscription.list(customer=customer_id, status="active", limit=1)
-    if not subs.data:
-        raise HTTPException(400, "No active subscription found")
-
-    sub = stripe.Subscription.modify(subs.data[0].id, cancel_at_period_end=True)
+    try:
+        subs = stripe.Subscription.list(customer=customer_id, status="active", limit=1)
+        if not subs.data:
+            raise HTTPException(400, "No active subscription found")
+        sub = stripe.Subscription.modify(subs.data[0].id, cancel_at_period_end=True)
+    except stripe.error.StripeError as e:
+        raise HTTPException(502, f"Stripe cancellation failed: {_stripe_error_detail(e)}")
     return {
         "cancelled_at_period_end": sub.cancel_at_period_end,
         "current_period_end": sub.current_period_end,
@@ -124,10 +138,13 @@ async def customer_portal(user: UserProfile = Depends(get_current_user)):
     if not customer_id:
         raise HTTPException(400, "No Stripe customer found")
 
-    session = stripe.billing_portal.Session.create(
-        customer=customer_id,
-        return_url="https://nestelance.com/settings?tab=billing",
-    )
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url="https://nestelance.com/settings?tab=billing",
+        )
+    except stripe.error.StripeError as e:
+        raise HTTPException(502, f"Stripe portal session failed: {_stripe_error_detail(e)}")
     return {"portal_url": session.url}
 
 
@@ -140,7 +157,10 @@ async def get_invoices(user: UserProfile = Depends(get_current_user)):
     if not customer_id:
         return {"invoices": []}
 
-    invoices = stripe.Invoice.list(customer=customer_id, limit=12)
+    try:
+        invoices = stripe.Invoice.list(customer=customer_id, limit=12)
+    except stripe.error.StripeError as e:
+        raise HTTPException(502, f"Stripe invoice lookup failed: {_stripe_error_detail(e)}")
     return {
         "invoices": [
             {
