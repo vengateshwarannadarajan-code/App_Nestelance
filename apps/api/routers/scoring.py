@@ -33,16 +33,28 @@ async def score_company_endpoint(body: ScoreRequest, user: UserProfile = Depends
     from engine import score_company
     from buffer_rule import apply_buffer_rule
 
+    # Score against the authenticated user's own company (get_current_user
+    # re-fetches this from public.users on every request, so it's always
+    # current) — never the client-supplied body.company_id. That field used
+    # to be trusted as-is here, unlike every other endpoint in this router;
+    # a stale client-side companyId (e.g. a browser tab whose cached value
+    # predates a later re-onboarding that repointed users.company_id) would
+    # silently write the new snapshot to the wrong, possibly orphaned
+    # company instead of erroring.
+    if not user.company_id:
+        raise HTTPException(400, "No company linked to user")
+    company_id = user.company_id
+
     enriched = inject_peer_scores(body.responses, body.sector_group)
 
     supabase = _supa()
     prev_snap = (supabase.table("score_snapshots")
-        .select("*").eq("company_id", body.company_id)
+        .select("*").eq("company_id", company_id)
         .order("created_at", desc=True).limit(1).execute())
     prev_responses = {}
     if prev_snap.data:
         prev_q = (supabase.table("questionnaire_responses")
-            .select("question_id, answer_value").eq("company_id", body.company_id).execute())
+            .select("question_id, answer_value").eq("company_id", company_id).execute())
         if prev_q.data:
             prev_responses = {r["question_id"]: r["answer_value"] for r in prev_q.data}
 
@@ -51,7 +63,7 @@ async def score_company_endpoint(body: ScoreRequest, user: UserProfile = Depends
     adjusted = apply_peer_percentiles(adjusted, peer_pcts)
 
     result = score_company(adjusted, body.sector_group)
-    snapshot_id = save_snapshot(body.company_id, user.id, result)
+    snapshot_id = save_snapshot(company_id, user.id, result)
 
     try:
         from tasks import trigger_shap

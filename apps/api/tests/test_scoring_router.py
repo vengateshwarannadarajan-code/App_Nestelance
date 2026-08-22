@@ -74,6 +74,34 @@ def test_valid_score_request_returns_snapshot(mock_supa, mock_redis, mock_save):
 @patch("routers.scoring.save_snapshot", return_value="snap-789")
 @patch("db.get_redis")
 @patch("routers.scoring._supa")
+def test_score_uses_authenticated_users_company_not_client_supplied_one(mock_supa, mock_redis, mock_save):
+    """Live-diagnosed bug: a stale client-cached companyId (a browser tab
+    whose value predates a later re-onboarding that repointed
+    users.company_id to a new company) used to get trusted as-is, silently
+    writing the new snapshot to the wrong, orphaned company. The endpoint
+    must always score/save against user.company_id, ignoring body.company_id
+    entirely, regardless of what the client sends."""
+    mock_supa.return_value = MagicMock()
+    mock_supa.return_value.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+    mock_supa.return_value.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+    mock_redis.return_value = MagicMock()
+
+    client = _get_client()  # MOCK_USER's company_id is "co-456"
+    request = {**VALID_REQUEST, "company_id": "co-DIFFERENT-STALE-ID"}
+    response = client.post("/api/scoring/score", json=request)
+    assert response.status_code == 200
+
+    # save_snapshot(company_id, user_id, result) — first positional arg
+    # must be the authenticated user's real company, not the stale one
+    # the client sent.
+    saved_company_id = mock_save.call_args[0][0]
+    assert saved_company_id == "co-456"
+    assert saved_company_id != "co-DIFFERENT-STALE-ID"
+
+
+@patch("routers.scoring.save_snapshot", return_value="snap-789")
+@patch("db.get_redis")
+@patch("routers.scoring._supa")
 def test_large_numeric_answer_does_not_saturate_theme_score(mock_supa, mock_redis, mock_save):
     """Regression test for the missing peer-percentile normalisation:
     a huge raw numeric answer (e.g. "999999" tCO2e/an) used to reach
@@ -99,6 +127,16 @@ def test_large_numeric_answer_does_not_saturate_theme_score(mock_supa, mock_redi
     assert response.status_code == 200
     climate_score = response.json()["themes"]["climate_transition"]["score"]
     assert climate_score < 2.0, f"Expected a moderate score reflecting mostly-unanswered questions, got {climate_score} (looks saturated)"
+
+
+def test_score_request_with_no_company_linked_returns_400():
+    from main import app
+    from auth import get_current_user, UserProfile
+    no_company_user = {**MOCK_USER, "company_id": None}
+    app.dependency_overrides[get_current_user] = lambda: UserProfile(**no_company_user)
+    client = TestClient(app)
+    response = client.post("/api/scoring/score", json=VALID_REQUEST)
+    assert response.status_code == 400
 
 
 def test_unauthenticated_request_returns_401():
