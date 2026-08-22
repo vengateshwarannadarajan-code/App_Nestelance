@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional
 import yaml, os
@@ -58,6 +59,20 @@ class CompanyUpdate(BaseModel):
 @router.post("", status_code=201)
 async def create_company(body: CompanyCreate, user: UserProfile = Depends(get_current_user)):
     supa = _supa()
+
+    # This is meant to run once, ever, per self-service user — but nothing
+    # enforced that. Any repeat visit to /onboarding/profile (a stale link,
+    # the demo-nav menu jumping straight into the questionnaire, a browser
+    # back button, or a companyId that hadn't finished syncing yet on a
+    # fresh tab — see nestelance's Root.tsx CompanySync) silently minted a
+    # brand new organizations+companies row and repointed users.company_id
+    # to it every time, orphaning the previous company and every snapshot/
+    # answer/report tied to it. If this user already has a company, return
+    # it instead of creating a duplicate.
+    if user.company_id:
+        existing = supa.table("companies").select("id, name, org_id").eq("id", user.company_id).maybe_single().execute()
+        if existing and existing.data:
+            return JSONResponse(status_code=200, content=existing.data)
 
     # Enterprise = a `companies` row backed by an `organizations` row of
     # type 'enterprise' (see 004_org_hierarchy.sql). If the creating user
