@@ -25,6 +25,17 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    # With a Redis broker + task_acks_late, kombu's default visibility_timeout
+    # is 3600s — a task whose worker gets killed mid-run (e.g. a Railway
+    # redeploy replacing the worker container) stays invisible to every other
+    # consumer for up to an hour before Redis redelivers it, which looks
+    # indistinguishable from "stuck on pending forever" from the UI. 10
+    # minutes is comfortably longer than a real SHAP run (Modal cold start +
+    # KernelExplainer) while still recovering promptly from an orphaned task.
+    # task_reject_on_worker_lost explicitly requeues immediately on a lost
+    # connection instead of relying solely on the visibility timeout expiring.
+    broker_transport_options={"visibility_timeout": 600},
+    task_reject_on_worker_lost=True,
 )
 
 
