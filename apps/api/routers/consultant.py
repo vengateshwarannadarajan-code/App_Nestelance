@@ -59,6 +59,7 @@ async def get_clients(user: UserProfile = Depends(_require_consultant)):
             "pillar_s": snap["pillar_s"] if snap else None,
             "pillar_g": snap["pillar_g"] if snap else None,
             "weakest_theme": weakest_theme,
+            "theme_scores": theme_scores,  # portfolio heat-map needs the full per-theme breakdown, not just the weakest one
             "last_updated": snap["created_at"] if snap else None,
             "has_assessment": snap is not None,
         })
